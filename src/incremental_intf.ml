@@ -1114,6 +1114,33 @@ module type S_abstract_times = sig
       appear in subsequent error messages when the node is pretty printed. *)
   val keep_node_creation_backtrace : bool ref
 
+  (** This [Let_syntax] allows you to write expressions like
+
+      {[
+        let open Incr.Let_syntax in
+        let%map_open some_incr = watch some_variable
+        and another_incr = ...
+        and ...
+        in
+        ...expression involving some_incr, another_incr, etc...
+      ]}
+
+      Note that this is less efficient than using [map3], [map4], etc., as the latter
+      produces fewer intermediate nodes. *)
+  module Let_syntax : sig
+    val return : 'a -> 'a t
+
+    module Let_syntax : sig
+      val bind : 'a t -> ('a -> 'b t) -> 'b t
+      val map  : 'a t -> f:('a -> 'b) -> 'b t
+      val both : 'a t -> 'b t -> ('a * 'b) t
+
+      module Open_on_rhs : sig
+        (** This is [Var.watch]. *)
+        val watch : 'a Var.t -> 'a t
+      end
+    end
+  end
 end
 
 module type S = S_abstract_times with module Time := Time_ns

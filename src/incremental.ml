@@ -201,6 +201,21 @@ module Make_with_config (Incremental_config : Incremental_config) () = struct
     then "<uncomputed>" |> [%sexp_of: string]
     else unsafe_value t |> [%sexp_of: a]
   ;;
+
+  module Let_syntax = struct
+    let return = return
+
+    module Let_syntax = struct
+      let bind = bind
+      let map  = map
+
+      let both t1 t2 = map2 t1 t2 ~f:(fun x1 x2 -> (x1, x2))
+
+      module Open_on_rhs = struct
+        let watch = Var.watch
+      end
+    end
+  end
 end
 
 module Make () = Make_with_config (Config.Default ()) ()

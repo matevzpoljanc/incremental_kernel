@@ -1,6 +1,6 @@
 version = "$(pkg_version)"
 description = "Library for incremental computations depending only on Core_kernel"
-requires = "bin_prot core_kernel fieldslib ppx_assert.runtime-lib ppx_bench.runtime-lib ppx_expect.collector ppx_inline_test.runtime-lib sexplib typerep variantslib"
+requires = "bin_prot core_kernel fieldslib ppx_assert.runtime-lib ppx_bench.runtime-lib ppx_inline_test.runtime-lib sexplib typerep variantslib"
 archive(byte  ) = "incremental_kernel.cma"
 archive(native) = "incremental_kernel.cmxa"
 plugin(byte  ) = "incremental_kernel.cma"
