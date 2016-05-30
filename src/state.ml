@@ -29,6 +29,28 @@ module Run_on_update_handlers = struct
   ;;
 end
 
+module Only_in_debug = struct
+
+  (* Extra state kept only when [debug] for the purpose of writing assertions. *)
+  type t =
+    { mutable currently_running_node               : Node.Packed.t option
+    ; mutable expert_nodes_created_by_current_node : Node.Packed.t list
+    }
+  [@@deriving fields, sexp_of]
+
+  let invariant t =
+    Invariant.invariant [%here] t [%sexp_of: t] (fun () ->
+      Fields.iter
+        ~currently_running_node:ignore
+        ~expert_nodes_created_by_current_node:ignore)
+  ;;
+
+  let create () =
+    { currently_running_node               = None
+    ; expert_nodes_created_by_current_node = []
+    }
+end
+
 type t =
   { mutable status                         : status
   ; bind_lhs_change_should_invalidate_rhs  : bool
@@ -104,6 +126,7 @@ type t =
   ; mutable now                            : Time_ns.t Var.t
   ; handle_fired                           : Alarm.t -> unit
   ; mutable fired_alarm_values             : Alarm_value.t Uopt.t
+  ; mutable only_in_debug                  : Only_in_debug.t
   (* Stats.  These are all incremented at the appropriate place, and never decremented. *)
   ; mutable num_nodes_became_necessary                       : int
   ; mutable num_nodes_became_unnecessary                     : int
@@ -272,6 +295,7 @@ let invariant t =
         ~fired_alarm_values:(check (fun fired_alarm_values ->
           assert (Uopt.is_none fired_alarm_values)))
         ~timing_wheel:(check (Timing_wheel_ns.invariant Alarm_value.invariant))
+        ~only_in_debug:(check Only_in_debug.invariant)
         ~num_nodes_became_necessary:ignore
         ~num_nodes_became_unnecessary:ignore
         ~num_nodes_changed:ignore
@@ -324,8 +348,12 @@ let handle_after_stabilization : type a . t -> a Node.t -> unit = fun t node ->
 let rec remove_children : type a . t -> a Node.t -> unit =
   fun t parent ->
     Node.iteri_children parent ~f:(fun child_index child ->
-      Node.remove_parent ~child ~parent ~child_index;
-      check_if_unnecessary t child);
+      remove_child t ~child ~parent ~child_index)
+
+and remove_child : type a b . t -> child:b Node.t -> parent:a Node.t -> child_index:int -> unit =
+  fun t ~child ~parent ~child_index ->
+    Node.remove_parent ~child ~parent ~child_index;
+    check_if_unnecessary t child
 
 and check_if_unnecessary : type a. t -> a Node.t -> unit = fun t node ->
   if verbose then Debug.ams [%here] "check_if_unnecessary" node [%sexp_of: _ Node.t];
@@ -338,6 +366,7 @@ and became_unnecessary : type a. t -> a Node.t -> unit = fun t node ->
   remove_children t node;
   begin match node.kind with
   | Unordered_array_fold u -> Unordered_array_fold.force_full_compute u
+  | Expert p -> Expert.observability_change p ~is_now_observable:false
   | _ -> ()
   end;
   if debug then assert (not (Node.needs_to_be_computed node));
@@ -454,14 +483,40 @@ let propagate_invalidity t =
       if Node.should_be_invalidated node
       then invalidate_node t node
       else begin
-        if debug then begin
-          match node.kind with
-          | Bind_main _
-          | If_then_else _
-          | Join_main _ -> ()
-          | _ -> assert false (* nodes with no children are never pushed on the stack *)
+        (* [Node.needs_to_be_computed node] is true because
+           - node is necessary. This is because children can only point to necessary
+             parents
+           - node is stale. This is because:
+             For bind, if, join, this is true because
+             - either the invalidation is caused by the lhs changing (in which case the
+               lhs-change node being newer makes us stale).
+             - or a child became invalid this stabilization cycle, in which case it
+               has t.changed_at of [t.stabilization_num], and so [node] is stale
+             - or [node] just became necessary and tried connecting to an already invalid
+               child. In that case, [child.changed_at > node.recomputed_at] for that
+               child, because if we had been recomputed when that child changed, we would
+               have been made invalid back then.
+             For expert nodes, the argument is the same, except that instead of lhs-change
+             nodes make the expert nodes stale, it's made stale explicitely when adding
+             or removing children. *)
+        if debug then assert (Node.needs_to_be_computed node);
+        begin match node.kind with
+        | Expert expert ->
+          (* If multiple children are invalid, they will push us as many times on the
+             propagation stack, so we count them right. *)
+          Expert.incr_invalid_children expert;
+        | kind ->
+          if debug then
+            match kind with
+            | Bind_main _
+            | If_then_else _
+            | Join_main _ -> ()
+            | _ -> assert false (* nodes with no children are never pushed on the stack *)
         end;
-        if Node.needs_to_be_computed node && not (Node.is_in_recompute_heap node)
+        (* We do not check [Node.needs_to_be_computed node] here, because it should be
+           true, and because computing it takes O(number of children), node can be pushed
+           on the stack once per child, and expert nodes can have lots of children. *)
+        if not (Node.is_in_recompute_heap node)
         then Recompute_heap.add t.recompute_heap node;
       end;
     end;
@@ -485,6 +540,10 @@ let rec add_parent_without_adjusting_heights
     if not (Node.is_valid child)
     then Stack.push t.propagate_invalidity (Node.pack parent);
     if not was_necessary then became_necessary t child;
+    begin match parent.kind with
+    | Expert e -> Expert.run_edge_callback e ~child_index
+    | _ -> ()
+    end;
 and became_necessary : type a. t -> a Node.t -> unit = fun t node ->
   if verbose then Debug.ams [%here] "became_necessary" node [%sexp_of: _ Node.t];
   (* [Scope.is_necessary node.created_in] is true (assuming the scope itself is valid)
@@ -514,6 +573,10 @@ and became_necessary : type a. t -> a Node.t -> unit = fun t node ->
   if debug then assert (not (Node.is_in_recompute_heap node));
   if debug then assert (Node.is_necessary node);
   if Node.is_stale node then Recompute_heap.add t.recompute_heap node;
+  begin match node.kind with
+  | Expert p -> Expert.observability_change p ~is_now_observable:true
+  | _ -> ()
+  end;
 ;;
 
 let became_necessary t node =
@@ -591,6 +654,10 @@ let change_child
 
 let rec recompute : type a. t -> a Node.t -> unit = fun t (node : a Node.t) ->
   if verbose then Debug.ams [%here] "recompute" node [%sexp_of: _ Node.t];
+  if debug then begin
+    t.only_in_debug.currently_running_node <- Some (Node.pack node);
+    t.only_in_debug.expert_nodes_created_by_current_node <- [];
+  end;
   t.num_nodes_recomputed <- t.num_nodes_recomputed + 1;
   node.recomputed_at <- t.stabilization_num;
   match node.kind with
@@ -614,6 +681,10 @@ let rec recompute : type a. t -> a Node.t -> unit = fun t (node : a Node.t) ->
     bind.all_nodes_created_on_rhs <- Uopt.none;
     let rhs = run_with_scope t rhs_scope ~f:(fun () -> f (Node.value_exn lhs)) in
     bind.rhs <- Uopt.some rhs;
+    (* Anticipate what [maybe_change_value] will do, to make sure Bind_main is stale right
+       away. This way, if the new child is invalid, we'll satisfy the invariant saying
+       that [needs_to_be_computed bind_main] in [propagate_invalidity] *)
+    node.changed_at <- t.stabilization_num;
     change_child t ~parent:main ~old_child:old_rhs ~new_child:rhs
       ~child_index:Kind.bind_rhs_child_index;
     if Uopt.is_some old_rhs then begin
@@ -648,6 +719,8 @@ let rec recompute : type a. t -> a Node.t -> unit = fun t (node : a Node.t) ->
                     as if_then_else) ->
     let desired_branch = if Node.value_exn test then then_ else else_ in
     if_then_else.current_branch <- Uopt.some desired_branch;
+    (* see the comment in Bind_lhs_change *)
+    node.changed_at <- t.stabilization_num;
     change_child t ~parent:main ~old_child:current_branch ~new_child:desired_branch
       ~child_index:Kind.if_branch_child_index;
     maybe_change_value t node ();
@@ -659,6 +732,8 @@ let rec recompute : type a. t -> a Node.t -> unit = fun t (node : a Node.t) ->
   | Join_lhs_change ({ lhs ; main; rhs = old_rhs; _ } as join) ->
     let rhs = Node.value_exn lhs in
     join.rhs <- Uopt.some rhs;
+    (* see the comment in Bind_lhs_change *)
+    node.changed_at <- t.stabilization_num;
     change_child t ~parent:main ~old_child:old_rhs ~new_child:rhs
       ~child_index:Kind.join_rhs_child_index;
     maybe_change_value t node ();
@@ -711,6 +786,13 @@ let rec recompute : type a. t -> a Node.t -> unit = fun t (node : a Node.t) ->
       (f (Node.value_exn n1) (Node.value_exn n2) (Node.value_exn n3)
          (Node.value_exn n4) (Node.value_exn n5) (Node.value_exn n6)
          (Node.value_exn n7) (Node.value_exn n8) (Node.value_exn n9))
+  | Expert expert ->
+    match Expert.before_main_computation expert with
+    | `Invalid ->
+      invalidate_node t node;
+      propagate_invalidity t;
+    | `Ok ->
+      maybe_change_value t node (expert.f ())
 
 and copy_child : type a. t -> parent:a Node.t -> child:a Node.t -> unit =
   fun t ~parent ~child ->
@@ -743,6 +825,9 @@ and maybe_change_value : type a. t -> a Node.t -> a -> unit =
                               (parent_index - 1))
           in
           begin match parent.kind with
+          | Expert expert ->
+            let child_index = node.my_child_index_in_parent_at_index.( parent_index ) in
+            Expert.run_edge_callback ~child_index expert
           | Unordered_array_fold u ->
             Unordered_array_fold.child_changed
               (* This [Obj.magic] is OK because we maintain the invariant that if
@@ -778,6 +863,9 @@ and maybe_change_value : type a. t -> a Node.t -> a -> unit =
           (Obj.magic (Uopt.value_exn node.parent0 : Should_not_use.t Node.t) : b Node.t)
         in
         begin match parent.kind with
+        | Expert p ->
+          let child_index = node.my_child_index_in_parent_at_index.(0) in
+          Expert.run_edge_callback ~child_index p
         | Unordered_array_fold u ->
           Unordered_array_fold.child_changed
             (Obj.magic (u : (_, _) Unordered_array_fold.t)
@@ -809,7 +897,8 @@ and maybe_change_value : type a. t -> a Node.t -> a -> unit =
             | Map7 _
             | Map8 _
             | Map9 _
-            | Unordered_array_fold _ -> false
+            | Unordered_array_fold _
+            | Expert _ -> false
             (* We can immediately recompute [parent] if no other node needs to be stable
                before computing it.  If [parent] has a single child (i.e. [node]), then
                this amounts to checking that [parent] won't be invalidated, i.e. that
@@ -867,6 +956,10 @@ let recompute_everything_that_is_necessary t =
            [%sexp_of: _ Node.t];
     recompute t node;
   done;
+  if debug then begin
+    t.only_in_debug.currently_running_node <- None;
+    t.only_in_debug.expert_nodes_created_by_current_node <- [];
+  end
 ;;
 
 let unlink_disallowed_observers t =
@@ -1529,6 +1622,7 @@ let create (module Config : Config.Incremental_config) ~max_height_allowed =
     ; handle_fired
     ; fired_alarm_values                               = Uopt.none
     ; timing_wheel
+    ; only_in_debug                                    = Only_in_debug.create ()
     ; num_nodes_became_necessary                       = 0
     ; num_nodes_became_unnecessary                     = 0
     ; num_nodes_changed                                = 0
@@ -1549,3 +1643,122 @@ let create (module Config : Config.Incremental_config) ~max_height_allowed =
   t.now <- create_var t Config.start;
   t
 ;;
+
+module Expert = struct
+  (* Given that invalid node are at attempt at avoiding breaking the entire incremental
+     computation on problems, let's just ignore any operation on an invalid incremental
+     rather than raising. *)
+  let expert_kind_of_node (node : _ Node.t) =
+    match node.kind with
+    | Expert e -> Uopt.some e
+    | Invalid -> Uopt.none
+    | kind -> raise_s [%sexp "unexpected kind for expert node", (kind : _ Kind.t)]
+  ;;
+
+  let create state ~on_observability_change f =
+    let e = Expert.create ~f ~on_observability_change in
+    let node = create_node state (Expert e) in
+    if debug then begin
+      if Option.is_some state.only_in_debug.currently_running_node
+      then state.only_in_debug.expert_nodes_created_by_current_node <-
+          Node.pack node :: state.only_in_debug.expert_nodes_created_by_current_node
+    end;
+    node
+  ;;
+
+  let currently_running_node_exn state name =
+    match state.only_in_debug.currently_running_node with
+    | None -> raise_s [%sexp ("can only call " ^ name ^ " during stabilization" : string)]
+    | Some current -> current
+  ;;
+
+  (* Note that the two following functions are not symmetric of one another: in [let y =
+     map x], [x] is always a child of [y] (assuming [x] doesn't become invalid) but [y] in
+     only a parent of [x] if y is necessary. *)
+  let assert_currently_running_node_is_child state node name =
+    let current = currently_running_node_exn state name in
+    if not (Node.has_child node ~child:current)
+    then raise_s [%sexp ("can only call " ^ name ^ " on parent nodes" : string),
+                        ~~(node.kind : _ Kind.t),
+                        ~~(current.kind : _ Kind.t)]
+  ;;
+
+  let assert_currently_running_node_is_parent state node name =
+    let current = currently_running_node_exn state name in
+    if not (Node.has_parent ~parent:current node)
+    then raise_s [%sexp ("can only call " ^ name ^ " on children nodes" : string),
+                        ~~(node.kind : _ Kind.t),
+                        ~~(current.kind : _ Kind.t)]
+  ;;
+
+  let make_stale state node =
+    let e_opt = expert_kind_of_node node in
+    if Uopt.is_some e_opt then begin
+      if debug then assert_currently_running_node_is_child state node "make_stale";
+      let e = Uopt.unsafe_value e_opt in
+      match Expert.make_stale e with
+      | `Already_stale -> ()
+      | `Ok ->
+        if Node.is_necessary node && not (Node.is_in_recompute_heap node)
+        then Recompute_heap.add state.recompute_heap node;
+    end
+  ;;
+
+  let invalidate state node =
+    if debug then assert_currently_running_node_is_child state node "invalidate";
+    invalidate_node state node;
+    propagate_invalidity state;
+  ;;
+
+  let add_dependency state node (dep : _ Expert.edge) =
+    let e_opt = expert_kind_of_node node in
+    if Uopt.is_some e_opt then begin
+      if debug then begin
+        if am_stabilizing state
+        && not (List.mem ~equal:phys_equal
+                  state.only_in_debug.expert_nodes_created_by_current_node
+                  (Node.pack node))
+        then assert_currently_running_node_is_child state node "add_dependency";
+      end;
+      let e = Uopt.unsafe_value e_opt in
+      let new_child_index = Expert.add_child_edge e (E dep) in
+      if Node.is_necessary node then begin
+        add_parent state ~child:dep.child ~parent:node
+          ~child_index:new_child_index;
+        if debug then assert (Node.needs_to_be_computed node);
+        if not (Node.is_in_recompute_heap node)
+        then Recompute_heap.add state.recompute_heap node;
+      end;
+    end
+  ;;
+
+  let remove_dependency state node (edge : _ Expert.edge) =
+    let e_opt = expert_kind_of_node node in
+    if Uopt.is_some e_opt then begin
+      if debug then assert_currently_running_node_is_child state node "remove_dependency";
+      let e = Uopt.unsafe_value e_opt in
+      (* It would require additional thoughts to check whether allowing the node not to be
+         necessary makes sense. *)
+      assert (Node.is_necessary node);
+      let edge_index = Uopt.value_exn edge.index in
+      let Expert.E last_edge = Expert.last_child_edge_exn e in
+      let last_edge_index = Uopt.value_exn last_edge.index in
+      if edge_index <> last_edge_index then begin
+        Node.swap_children_except_in_kind node
+          ~child1:edge.child
+          ~child_index1:edge_index
+          ~child2:last_edge.child
+          ~child_index2:last_edge_index;
+        Expert.swap_children e ~child_index1:edge_index ~child_index2:last_edge_index;
+        if debug then Node.invariant ignore node;
+      end;
+      Expert.remove_last_child_edge_exn e;
+      remove_child state ~child:edge.child ~parent:node ~child_index:last_edge_index;
+      if debug then assert (Node.needs_to_be_computed node);
+      if not (Node.is_in_recompute_heap node)
+      then Recompute_heap.add state.recompute_heap node;
+      if not (Node.is_valid edge.child)
+      then Expert.decr_invalid_children e;
+    end
+  ;;
+end

@@ -11,6 +11,7 @@ type 'a t = 'a Types.Kind.t =
   | Bind_lhs_change       : (_, _) Bind.t -> unit t
   | Bind_main             : (_, 'a) Bind.t -> 'a t
   | Const                of 'a
+  | Expert               of 'a Expert.t
   | Freeze               of 'a Freeze.t
   | If_test_change        : _ If_then_else.t -> unit t
   | If_then_else         of 'a If_then_else.t
@@ -67,6 +68,7 @@ let name : type a. a t -> string = function
   | Bind_lhs_change _      -> "Bind_lhs_change"
   | Bind_main _            -> "Bind_main"
   | Const _                -> "Const"
+  | Expert _               -> "Expert"
   | Freeze _               -> "Freeze"
   | If_test_change _       -> "If_test_change"
   | If_then_else _         -> "If_then_else"
@@ -97,6 +99,7 @@ let invariant : type a . a Invariant.t -> a t Invariant.t = fun invariant_a t ->
   | Bind_lhs_change bind -> Bind.invariant ignore ignore      bind
   | Bind_main       bind -> Bind.invariant ignore invariant_a bind
   | Const a -> invariant_a a
+  | Expert e -> Expert.invariant invariant_a e
   | Freeze freeze -> Freeze.invariant invariant_a freeze
   | If_test_change if_then_else -> If_then_else.invariant ignore      if_then_else
   | If_then_else   if_then_else -> If_then_else.invariant invariant_a if_then_else
@@ -120,13 +123,14 @@ let invariant : type a . a Invariant.t -> a t Invariant.t = fun invariant_a t ->
   | Var var -> Var.invariant ignore var
 ;;
 
-let max_num_children (type a) (t : a t) =
+let initial_num_children (type a) (t : a t) =
   match t with
   | At _              -> 0
   | At_intervals _    -> 0
   | Bind_lhs_change _ -> 1
   | Bind_main _       -> 2
   | Const _           -> 0
+  | Expert _          -> 0
   | Freeze _          -> 1
   | If_test_change _  -> 1
   | If_then_else _    -> 2
@@ -176,6 +180,11 @@ let iteri_children (type a) (t : a t) ~(f : int -> Packed_node.t -> unit) : unit
     f 0 (Node.pack lhs_change);
     if Uopt.is_some rhs then f 1 (Node.pack (Uopt.unsafe_value rhs));
   | Const _ -> ()
+  | Expert { children; num_children; _ } ->
+    for i = 0 to num_children - 1; do
+      let Expert.E r = Uopt.value_exn (Array.unsafe_get children i)  in
+      f i (Node.pack r.child)
+    done
   | Freeze { child; _ } -> f 0 (Node.pack child)
   | If_test_change { test; _ } -> f 0 (Node.pack test)
   | If_then_else { test_change; current_branch; _ } ->
@@ -258,6 +267,9 @@ let slow_get_child : type a . a t -> index:_ -> _ =
     match t with
     | Array_fold { children; _ }           -> Node.pack children.( index )
     | Unordered_array_fold { children; _ } -> Node.pack children.( index )
+    | Expert { children; _ } ->
+      let Expert.E edge = Uopt.value_exn children.( index ) in
+      Node.pack edge.child
     | _ ->
       with_return (fun r ->
         iteri_children t ~f:(fun i child -> if i = index then r.return child);

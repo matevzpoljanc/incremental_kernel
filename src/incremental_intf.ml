@@ -1046,6 +1046,99 @@ module type S_abstract_times = sig
   val user_info     : _ t -> Info.t option
   val set_user_info : _ t -> Info.t option -> unit
 
+  (** A low-level, experimental interface to incremental.  This is useful when you need
+      more control over the dependency graph, for performance reasons.  It comes at the
+      cost that it's much harder to use right.  Specifically, here is what you can do with
+      an expert node:
+
+      - learn when any child changes, so the expert node can update itself incrementally,
+      rather than having to look at the value of all its children.
+
+      - incrementally update its set of parents.
+
+      - select which parents should fire.
+
+      If you use this interface, you are most definitely advised to test carefully, and in
+      particular you should try it out using [incremental_debug_kernel] or
+      [incremental_debug], which is going to check most pre-conditions.  *)
+  module Expert : sig
+
+    module Dependency : sig
+      (** A [t] represents the edge from a child incremental to a parent expert node. A
+          [t] is stateful, you cannot use the same [t] to link one child node to multiple
+          parents at the same time. *)
+      type 'a t [@@deriving sexp_of]
+
+      (** When calling [create ?on_change child], nothing happens until the [t] is linked
+          to a parent.  see [Node.add_dependency] for documentation of [on_change]. *)
+      val create : ?on_change:('a -> unit) -> 'a incremental -> 'a t
+
+      (** [value t] reads the value of the child incremental.  It can only be used from
+          the callback of the [Expert.Node.t] that has [t] in its set of dependencies. *)
+      val value : 'a t -> 'a
+    end
+
+    module Node : sig
+      type 'a t [@@deriving sexp_of]
+
+      (** [let t = create ?on_unobservability_change callback] creates a new expert node.
+
+          [on_unobservability_change], if given, is called whenever the node becomes
+          observable or unobservable (with alternating value for [is_now_observable],
+          starting at [true] the first time the node becomes observable).  This callback
+          could run multiple times per stabilization.  It should not change the
+          incremental graph.
+
+          [callback] is called if any dependency of [t] has changed since it was last
+          called, or if the set of dependencies has changed.  The callback will only run
+          when all the dependencies are up-to-date, and inside the callback, you can
+          safely call [Dependency.value] on your dependencies, as well as call all the
+          functions below on the parent nodes.  Any behavior that works on all incremental
+          nodes (cutoff, invalidation, debug info etc) also work on [t]. *)
+      val create
+         :  ?on_observability_change : (is_now_observable:bool -> unit)
+         -> (unit -> 'a)
+         -> 'a t
+
+       (** [watch t] allows you to plug [t] in the rest of the incremental graph, but it's
+           also useful to set a cutoff function, debug info etc. *)
+       val watch : 'a t -> 'a incremental
+
+       (** Calling [make_stale t] ensures that incremental will recompute [t] before
+           anyone reads its value.  [t] may not fire though, if it never becomes
+           necessary.  This is intended to be called only from a child of [t].  Along with
+           a well chosen cutoff function, it allows to choose which parents should
+           fire. *)
+       val make_stale : _ t -> unit
+
+       (** [invalidate t] makes [t] invalid, as if its surrounding bind had changed.  This
+           is intended to be called only from a child of [t]. *)
+       val invalidate : _ t -> unit
+
+       (** [add_dependency t dep] makes [t] depend on the child incremental in the [dep].
+           If [dep] is already used to link the child incremental to another parent, an
+           exception is raised.
+
+           This is intended to be called either outside of stabilization, or right after
+           creating [t], or from a child of [t] (and in that case, as a consequence [t]
+           must be necessary).
+
+           The [on_change] callback of [dep] will be fired when [t] becomes observable,
+           or immediately, or whenever the child changes as long as [t] is observable.
+           When this function is called due to observability changes, the callback may
+           fire several times in the same stabilization, so it should be idempotent. The
+           callback must not change the incremental graph, particularly not the
+           dependencies of [t].
+
+           All the [on_change] callbacks are guaranteed to be run before the callback of
+           [create] is run. *)
+       val add_dependency : _ t -> _ Dependency.t -> unit
+
+       (** [remove_dependency t dep] can only be called from a child of [t]. *)
+       val remove_dependency : _ t -> _ Dependency.t -> unit
+    end
+  end
+
   (** {1 State}
 
       Each call to [Incremental.Make] creates shared state used by all the incremental

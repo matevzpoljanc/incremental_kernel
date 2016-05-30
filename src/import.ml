@@ -57,4 +57,14 @@ module Array = struct
   let unsafe_get = get
   let unsafe_set = set
 #endif
+
+  (* Requires [len >= length t]. *)
+  let realloc t ~len a =
+    let new_t = create ~len a in
+    Array.blit
+      ~src:t     ~src_pos:0
+      ~dst:new_t ~dst_pos:0
+      ~len:(length t);
+    new_t
+  ;;
 end

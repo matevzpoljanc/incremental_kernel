@@ -106,15 +106,11 @@ let set_user_info t user_info = t.user_info <- user_info
 
 let is_necessary = Node.is_necessary
 
-let max_num_children t = Kind.max_num_children t.kind
+let initial_num_children t = Kind.initial_num_children t.kind
 
 let iteri_children t ~f = Kind.iteri_children t.kind ~f
 
-let is_valid t =
-  match t.kind with
-  | Invalid -> false
-  | _ -> true
-;;
+let is_valid = Node.is_valid
 
 let edge_is_stale ~child ~parent =
   Stabilization_num.compare child.changed_at parent.recomputed_at > 0
@@ -171,6 +167,10 @@ let is_stale : type a. a t -> bool = fun (t : a t) ->
   | Unordered_array_fold _
     ->
     Stabilization_num.is_none t.recomputed_at
+    || is_stale_with_respect_to_a_child t
+  | Expert { force_stale; _ } ->
+    force_stale
+    || Stabilization_num.is_none t.recomputed_at
     || is_stale_with_respect_to_a_child t
 ;;
 
@@ -243,6 +243,11 @@ let should_be_invalidated : type a. a t -> bool = fun t ->
   | Bind_main { lhs_change; _ }     -> not (is_valid lhs_change)
   | If_then_else { test_change; _ } -> not (is_valid test_change)
   | Join_main { lhs_change; _ }     -> not (is_valid lhs_change)
+  | Expert _ ->
+    (* This is similar to what we do for bind above, except that any invalid child can be
+       removed, so we can only tell if an expert node becomes invalid when all its
+       dependencies have fired (which in practice means when we are about to run it). *)
+    false
 ;;
 
 let fold_observers t ~init ~f =
@@ -260,7 +265,7 @@ let iter_observers t ~f = fold_observers t ~init:() ~f:(fun () observer -> f obs
 
 let invariant (type a) (invariant_a : a -> unit) (t : a t) =
   Invariant.invariant [%here] t [%sexp_of: _ t] (fun () ->
-    assert (Bool.equal (needs_to_be_computed t) (is_in_recompute_heap t));
+    [%test_eq: bool] (needs_to_be_computed t) (is_in_recompute_heap t);
     if is_necessary t then begin
       assert (t.height > Scope.height t.created_in);
       iteri_children t ~f:(fun _ child ->
@@ -279,7 +284,13 @@ let invariant (type a) (invariant_a : a -> unit) (t : a t) =
       ~value_opt:(check (fun value_opt ->
         if is_valid t && not (is_stale t) then assert (Uopt.is_some value_opt);
         Uopt.invariant invariant_a value_opt))
-      ~kind:(check (Kind.invariant invariant_a))
+      ~kind:(check (fun kind ->
+        Kind.invariant invariant_a kind;
+        match kind with
+        | Expert e ->
+          Expert.invariant_about_num_invalid_children e
+            ~is_necessary:(is_necessary t)
+        | _ -> ()))
       ~cutoff:(check (Cutoff.invariant invariant_a))
       ~changed_at:(check (fun changed_at ->
         Stabilization_num.invariant changed_at;
@@ -350,13 +361,18 @@ let invariant (type a) (invariant_a : a -> unit) (t : a t) =
       ~on_update_handlers:ignore
       ~user_info:ignore
       ~my_parent_index_in_child_at_index:(check (fun my_parent_index_in_child_at_index ->
-        [%test_result: int] (Array.length my_parent_index_in_child_at_index)
-          ~expect:(max_num_children t);
+        begin match t.kind with
+        | Expert _ -> ()
+        | _ ->
+          [%test_result: int] (Array.length my_parent_index_in_child_at_index)
+            ~expect:(initial_num_children t);
+        end;
         if is_necessary t
         then
           iteri_children t ~f:(fun child_index child ->
             assert (same t (get_parent child
-                              ~index:(my_parent_index_in_child_at_index.( child_index )))))))
+                              ~index:(my_parent_index_in_child_at_index.( child_index ))))
+          )))
       ~my_child_index_in_parent_at_index:(check (fun my_child_index_in_parent_at_index ->
         [%test_result: int] (Array.length my_child_index_in_parent_at_index)
           ~expect:(Array.length t.parent1_and_beyond + 1);
@@ -426,7 +442,8 @@ let keep_node_creation_backtrace = ref false
 
 let set_kind t kind =
   t.kind <- kind;
-  t.my_parent_index_in_child_at_index <- Array.create ~len:(Kind.max_num_children kind) (-1)
+  t.my_parent_index_in_child_at_index <-
+    Array.create ~len:(Kind.initial_num_children kind) (-1)
 ;;
 
 let create created_in kind =
@@ -453,7 +470,8 @@ let create created_in kind =
     ; observers                         = Uopt.none
     ; is_in_handle_after_stabilization  = false
     ; on_update_handlers                = []
-    ; my_parent_index_in_child_at_index = Array.create ~len:(Kind.max_num_children kind) (-1)
+    ; my_parent_index_in_child_at_index =
+        Array.create ~len:(Kind.initial_num_children kind) (-1)
     (* [my_child_index_in_parent_at_index] has one element because it may need to hold
        the child index of [parent0]. *)
     ; my_child_index_in_parent_at_index = [| -1 |]
@@ -471,26 +489,28 @@ let create created_in kind =
   t
 ;;
 
-let realloc array ~len a =
-  let new_array = Array.create ~len a in
-  Array.blit
-    ~src:array     ~src_pos:0
-    ~dst:new_array ~dst_pos:0
-    ~len:(Array.length array);
-  new_array
-;;
-
 let max_num_parents t = 1 + Array.length t.parent1_and_beyond
 
 let make_space_for_parent_if_necessary t =
   if t.num_parents = max_num_parents t then begin
     let new_max_num_parents = 2 * max_num_parents t in
     t.parent1_and_beyond <-
-      realloc t.parent1_and_beyond ~len:(new_max_num_parents - 1) Uopt.none;
+      Array.realloc t.parent1_and_beyond ~len:(new_max_num_parents - 1) Uopt.none;
     t.my_child_index_in_parent_at_index <-
-      realloc t.my_child_index_in_parent_at_index ~len:new_max_num_parents (-1);
+      Array.realloc t.my_child_index_in_parent_at_index ~len:new_max_num_parents (-1);
   end;
   if debug then assert (t.num_parents < max_num_parents t);
+;;
+
+let make_space_for_child_if_necessary t ~child_index =
+  let max_num_children = Array.length t.my_parent_index_in_child_at_index in
+  if child_index >= max_num_children then begin
+    if debug then assert (child_index = max_num_children);
+    let new_max_num_children = Int.max 2 (2 * max_num_children) in
+    t.my_parent_index_in_child_at_index <-
+      Array.realloc t.my_parent_index_in_child_at_index ~len:new_max_num_children (-1);
+  end;
+  if debug then assert (child_index < Array.length t.my_parent_index_in_child_at_index);
 ;;
 
 let set_parent
@@ -523,6 +543,7 @@ let add_parent
   : type a b. child:a t -> parent:b t -> child_index:int -> unit =
   fun ~child ~parent ~child_index ->
     make_space_for_parent_if_necessary child;
+    make_space_for_child_if_necessary parent ~child_index;
     link ~child ~child_index ~parent ~parent_index:child.num_parents;
     child.num_parents <- child.num_parents + 1;
 ;;
@@ -545,6 +566,30 @@ let remove_parent
         ~parent_index;
     unlink ~child ~child_index ~parent ~parent_index:last_parent_index;
     child.num_parents <- child.num_parents - 1;
+;;
+
+let swap_children_except_in_kind parent ~child1 ~child_index1 ~child2 ~child_index2 =
+  if debug then begin
+    assert (same child1 (Kind.slow_get_child parent.kind ~index:child_index1));
+    assert (same child2 (Kind.slow_get_child parent.kind ~index:child_index2));
+  end;
+  let index_of_parent_in_child1 =
+    parent.my_parent_index_in_child_at_index.( child_index1 )
+  in
+  let index_of_parent_in_child2 =
+    parent.my_parent_index_in_child_at_index.( child_index2 )
+  in
+  if debug then begin
+    assert (child1.my_child_index_in_parent_at_index.( index_of_parent_in_child1 )
+            = child_index1);
+    assert (child2.my_child_index_in_parent_at_index.( index_of_parent_in_child2 )
+            = child_index2);
+  end;
+  (* now start swapping *)
+  child1.my_child_index_in_parent_at_index.( index_of_parent_in_child1 ) <- child_index2;
+  child2.my_child_index_in_parent_at_index.( index_of_parent_in_child2 ) <- child_index1;
+  parent.my_parent_index_in_child_at_index.( child_index1 ) <- index_of_parent_in_child2;
+  parent.my_parent_index_in_child_at_index.( child_index2 ) <- index_of_parent_in_child1;
 ;;
 
 module Packed = struct

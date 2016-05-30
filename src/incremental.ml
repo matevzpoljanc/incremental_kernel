@@ -202,6 +202,44 @@ module Make_with_config (Incremental_config : Incremental_config) () = struct
     else unsafe_value t |> [%sexp_of: a]
   ;;
 
+  module Expert = struct
+    module Dependency = struct
+      type 'a t = 'a Expert.edge [@@deriving sexp_of]
+
+      let create ?(on_change = ignore) child : _ t =
+        { child; on_change; index = Uopt.none }
+      ;;
+
+      let value (t : _ t) =
+        if debug then begin
+          State.Expert.assert_currently_running_node_is_parent State.t
+            t.child "Dependency.value"
+        end;
+        (* Not exposing the _exn, because this function is advertised as being usable only
+           inside the callbacks of parents, where it will not raise. *)
+        Node.value_exn t.child
+      ;;
+    end
+
+    module Node = struct
+      type nonrec 'a t = 'a t [@@deriving sexp_of]
+
+      let create ?(on_observability_change = fun ~is_now_observable:_ -> ()) f =
+        State.Expert.create State.t ~on_observability_change f
+      ;;
+
+      let make_stale t = State.Expert.make_stale state t
+
+      let watch = Fn.id
+
+      let invalidate t = State.Expert.invalidate State.t t
+
+      let add_dependency t edge = State.Expert.add_dependency State.t t edge
+
+      let remove_dependency t edge  = State.Expert.remove_dependency State.t t edge
+    end
+  end
+
   module Let_syntax = struct
     let return = return
 

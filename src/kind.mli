@@ -13,7 +13,7 @@ include Sexp_of.  S1 with type 'a t := 'a t
 
 val name : _ t -> string
 
-val max_num_children : _ t -> int
+val initial_num_children : _ t -> int
 
 (** [slow_get_child t ~index] raises unless [0 <= index < max_num_children t].  It will
     also raise if the [index]'th child is currently undefined (e.g. a bind node with no

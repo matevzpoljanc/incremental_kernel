@@ -66,6 +66,26 @@ and Bind : sig
     }
 end = Bind
 
+and Expert : sig
+  type 'a edge =
+    { child         : 'a Node.t
+    ; on_change     : 'a -> unit
+    ; mutable index : int Uopt.t
+    }
+
+  type packed_edge = E : 'a edge -> packed_edge
+
+  type 'a t =
+    { f                               : unit -> 'a
+    ; on_observability_change         : is_now_observable:bool -> unit
+    ; mutable children                : packed_edge Uopt.t Array.t
+    ; mutable num_children            : int
+    ; mutable force_stale             : bool
+    ; mutable num_invalid_children    : int
+    ; mutable will_fire_all_callbacks : bool
+    }
+end = Expert
+
 and Freeze : sig
   type 'a t =
     { main             : 'a Node.t
@@ -117,6 +137,7 @@ and Kind : sig
     | Bind_lhs_change       : (_, _) Bind.t -> unit t
     | Bind_main             : (_, 'a) Bind.t -> 'a t
     | Const                of 'a
+    | Expert               of 'a Expert.t
     | Freeze               of 'a Freeze.t
     | If_test_change        : _ If_then_else.t -> unit t
     | If_then_else         of 'a If_then_else.t
@@ -199,7 +220,7 @@ and Node : sig
   [@@deriving sexp_of]
 
   val pack : _ t -> Packed_node.t
-
+  val is_valid : _ t -> bool
   val is_necessary : _ t -> bool
 
 end = struct
@@ -208,6 +229,12 @@ end = struct
   let sexp_of_t _ t = concat [ "n"; Node_id.to_string t.id ] |> [%sexp_of: string]
 
   let pack (type a) t = (Obj.magic (t : a t) : Should_not_use.t t)
+
+  let is_valid t =
+    match t.kind with
+    | Invalid -> false
+    | _ -> true
+  ;;
 
   (* [is_necessary] is defined here because we need it before node.ml is available.  It is
      used during graph manipulation, and so is written with some care to be fast. *)

@@ -82,6 +82,13 @@ val get_parent : _ t -> index:int -> Packed.t
 
 val add_parent    : child:'a t -> parent:'b t -> child_index:int -> unit
 val remove_parent : child:'a t -> parent:'b t -> child_index:int -> unit
+val swap_children_except_in_kind
+  :  _ t
+  -> child1       : _ t
+  -> child_index1 : int
+  -> child2       : _ t
+  -> child_index2 : int
+  -> unit
 
 val is_const             : _ t -> bool
 
@@ -131,3 +138,7 @@ val keep_node_creation_backtrace : bool ref
 
 val user_info     : _ t -> Info.t option
 val set_user_info : _ t -> Info.t option -> unit
+
+(** These functions are meant for debug, as they are not very efficient. *)
+val has_child  : _ t -> child  : _ t -> bool
+val has_parent : _ t -> parent : _ t -> bool
