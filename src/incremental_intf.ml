@@ -1081,9 +1081,9 @@ module type S_abstract_times = sig
     module Node : sig
       type 'a t [@@deriving sexp_of]
 
-      (** [let t = create ?on_unobservability_change callback] creates a new expert node.
+      (** [let t = create ?on_observability_change callback] creates a new expert node.
 
-          [on_unobservability_change], if given, is called whenever the node becomes
+          [on_observability_change], if given, is called whenever the node becomes
           observable or unobservable (with alternating value for [is_now_observable],
           starting at [true] the first time the node becomes observable).  This callback
           could run multiple times per stabilization.  It should not change the
