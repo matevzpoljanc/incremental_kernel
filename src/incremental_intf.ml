@@ -1222,7 +1222,8 @@ module type S_abstract_times = sig
       produces fewer intermediate nodes. *)
   module Let_syntax : sig
     val return : 'a -> 'a t
-
+    val ( >>| ) : 'a t -> ('a -> 'b  ) -> 'b t
+    val ( >>= ) : 'a t -> ('a -> 'b t) -> 'b t
     module Let_syntax : sig
       val bind : 'a t -> ('a -> 'b t) -> 'b t
       val map  : 'a t -> f:('a -> 'b) -> 'b t

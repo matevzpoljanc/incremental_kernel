@@ -242,6 +242,8 @@ module Make_with_config (Incremental_config : Incremental_config) () = struct
 
   module Let_syntax = struct
     let return = return
+    let ( >>| ) = ( >>| )
+    let ( >>= ) = ( >>= )
 
     module Let_syntax = struct
       let bind = bind
