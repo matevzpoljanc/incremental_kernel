@@ -144,12 +144,12 @@
     reminder, [bind] has this type:
 
     {[
-      val bind : 'a t -> ('a -> 'b t) -> 'b t
+      val bind : 'a t -> f:('a -> 'b t) -> 'b t
     ]}
 
-    [bind ta f] returns an incremental [tb] that behaves like [f a], where [a] is the most
-    recent value of [ta].  The implementation only calls [f] when the value of [ta]
-    changes.  Thinking in terms of the DAG, [bind ta f] returns a node [tb] such that
+    [bind ta ~f] returns an incremental [tb] that behaves like [f a], where [a] is the
+    most recent value of [ta].  The implementation only calls [f] when the value of [ta]
+    changes.  Thinking in terms of the DAG, [bind ta ~f] returns a node [tb] such that
     whenever the value of [ta] changes, the implementation calls [f] to obtain a node
     (possibly with an arbitrary DAG below it) that defines the value of [tb].
 
@@ -158,7 +158,7 @@
 
     {[
       val if_ : bool t -> a t -> a t -> a t
-      let if_ a b c = bind a (fun a -> if a then b else c)
+      let if_ a b c = bind a ~f:(fun a -> if a then b else c)
     ]}
 
     With [let t = if_ a b c], when [a] is [true], if [t] is necessary, then [b] will be
@@ -170,7 +170,7 @@
 
     {[
       let config_var = Var.create config in
-      bind (Var.watch config_var) (fun config -> ... )
+      bind (Var.watch config_var) ~f:(fun config -> ... )
     ]}
 
     Then, whenever one wants to reconfigure the system, one does [Var.set config_var]
@@ -194,9 +194,9 @@
 
     {[
       let t1 = map ... in
-      bind t2 (fun _ ->
-                let t3 = map ... in
-                map2 t1 t3 ~f:(...))
+      bind t2 ~f:(fun _ ->
+        let t3 = map ... in
+        map2 t1 t3 ~f:(...))
     ]}
 
     In this example, [t1] is created outside of [bind t2], whereas [t3] is created by the
@@ -473,7 +473,7 @@ module type S_abstract_times = sig
           -> 'b)
     -> 'b t
 
-  (** [bind t1 f] returns an incremental [t2] that behaves like [f v], where [v] is the
+  (** [bind t1 ~f] returns an incremental [t2] that behaves like [f v], where [v] is the
       value of [t1].  If [t1]'s value changes, then incremental applies [f] to that new
       value and [t2] behaves like the resulting incremental.
 
@@ -483,29 +483,29 @@ module type S_abstract_times = sig
       (and its n-ary variants above) instead of [bind] unless one actually needs [bind]'s
       power.
 
-      [bind2 t1 t2 f] is:
+      [bind2 t1 t2 ~f] is:
 
       {[
-        bind (map2 t1 t2) ~f:(fun v1 v2 -> (v1, v2))
-          (fun (v1, v2) -> f v1 v2)
+        bind (map2 t1 t2 ~f:(fun v1 v2 -> (v1, v2)))
+          ~f:(fun (v1, v2) -> f v1 v2)
       ]}
 
-      This is equivalent to [bind t1 (fun v1 -> bind t2 (fun v2 -> f v1 v2))] but more
-      efficient due to using one bind node rather than two.  The other [bind<N>] functions
-      are generalize to more arguments. *)
-  val bind    : 'a t -> ('a -> 'b t) -> 'b t
-  val ( >>= ) : 'a t -> ('a -> 'b t) -> 'b t
+      This is equivalent to [bind t1 ~f:(fun v1 -> bind t2 ~f:(fun v2 -> f v1 v2))] but
+      more efficient due to using one bind node rather than two.  The other [bind<N>]
+      functions are generalize to more arguments. *)
+  val bind    : 'a t -> f:('a -> 'b t) -> 'b t
+  val ( >>= ) : 'a t ->   ('a -> 'b t) -> 'b t
   val bind2
-    :   'a1 t -> 'a2 t
-    -> ('a1   -> 'a2   -> 'b t)
+    :     'a1 t -> 'a2 t
+    -> f:('a1   -> 'a2   -> 'b t)
     -> 'b t
   val bind3
-    :   'a1 t -> 'a2 t -> 'a3 t
-    -> ('a1   -> 'a2   -> 'a3   -> 'b t)
+    :     'a1 t -> 'a2 t -> 'a3 t
+    -> f:('a1   -> 'a2   -> 'a3   -> 'b t)
     -> 'b t
   val bind4
-    :   'a1 t -> 'a2 t -> 'a3 t -> 'a4 t
-    -> ('a1   -> 'a2   -> 'a3   -> 'a4   -> 'b t)
+    :     'a1 t -> 'a2 t -> 'a3 t -> 'a4 t
+    -> f:('a1   -> 'a2   -> 'a3   -> 'a4   -> 'b t)
     -> 'b t
 
   module Infix : sig
@@ -965,7 +965,7 @@ module type S_abstract_times = sig
       closure that constructs incrementals.  For example:
 
       {[
-        bind t1 (fun i1 ->
+        bind t1 ~f:(fun i1 ->
           let f t2 = map t2 ~f:(fun i2 -> i1 + i2) in
           bind t3 ~f:(fun i -> ... f ...);
           bind t4 ~f:(fun i -> ... f ...));
@@ -976,7 +976,7 @@ module type S_abstract_times = sig
       the unnecessary dependence, one should save and restore the scope for [f]:
 
       {[
-        bind t1 (fun i1 ->
+        bind t1 ~f:(fun i1 ->
           let scope = Scope.current () in
           let f t2 = Scope.within scope ~f:(fun () -> map t2 ~f:(fun i2 -> i1 + i2)) in
           bind t3 ~f:(fun i -> ... f ...);
@@ -1225,8 +1225,8 @@ module type S_abstract_times = sig
     val ( >>| ) : 'a t -> ('a -> 'b  ) -> 'b t
     val ( >>= ) : 'a t -> ('a -> 'b t) -> 'b t
     module Let_syntax : sig
-      val bind : 'a t -> ('a -> 'b t) -> 'b t
-      val map  : 'a t -> f:('a -> 'b) -> 'b t
+      val bind : 'a t -> f:('a -> 'b t) -> 'b t
+      val map  : 'a t -> f:('a -> 'b)   -> 'b t
       val both : 'a t -> 'b t -> ('a * 'b) t
 
       module Open_on_rhs : sig

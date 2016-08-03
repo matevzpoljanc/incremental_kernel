@@ -1253,7 +1253,7 @@ let necessary_if_alive t input =
   output
 ;;
 
-let bind t lhs f =
+let bind t lhs ~f =
   if verbose then Debug.ams [%here] "bind" lhs [%sexp_of: _ Node.t];
   let lhs_change = create_node t Uninitialized in
   let main       = create_node t Uninitialized in
@@ -1275,19 +1275,19 @@ let bind t lhs f =
   main
 ;;
 
-let bind2 t n1 n2 f =
+let bind2 t n1 n2 ~f =
   bind t (map2 t n1 n2 ~f:(fun v1 v2 -> (v1, v2)))
-    (fun (v1, v2) -> f v1 v2)
+    ~f:(fun (v1, v2) -> f v1 v2)
 ;;
 
-let bind3 t n1 n2 n3 f =
+let bind3 t n1 n2 n3 ~f =
   bind t (map3 t n1 n2 n3 ~f:(fun v1 v2 v3 -> (v1, v2, v3)))
-    (fun (v1, v2, v3) -> f v1 v2 v3)
+    ~f:(fun (v1, v2, v3) -> f v1 v2 v3)
 ;;
 
-let bind4 t n1 n2 n3 n4 f =
+let bind4 t n1 n2 n3 n4 ~f =
   bind t (map4 t n1 n2 n3 n4 ~f:(fun v1 v2 v3 v4 -> (v1, v2, v3, v4)))
-    (fun (v1, v2, v3, v4) -> f v1 v2 v3 v4)
+    ~f:(fun (v1, v2, v3, v4) -> f v1 v2 v3 v4)
 ;;
 
 let join t lhs =

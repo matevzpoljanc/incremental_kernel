@@ -55,14 +55,14 @@ module Make_with_config (Incremental_config : Incremental_config) () = struct
   let map8 t1 t2 t3 t4 t5 t6 t7 t8 ~f    = State.map8 state t1 t2 t3 t4 t5 t6 t7 t8    ~f
   let map9 t1 t2 t3 t4 t5 t6 t7 t8 t9 ~f = State.map9 state t1 t2 t3 t4 t5 t6 t7 t8 t9 ~f
 
-  let bind t            f = State.bind  state t           f
-  let bind2 t1 t2       f = State.bind2 state t1 t2       f
-  let bind3 t1 t2 t3    f = State.bind3 state t1 t2 t3    f
-  let bind4 t1 t2 t3 t4 f = State.bind4 state t1 t2 t3 t4 f
+  let bind t            ~f = State.bind  state t           ~f
+  let bind2 t1 t2       ~f = State.bind2 state t1 t2       ~f
+  let bind3 t1 t2 t3    ~f = State.bind3 state t1 t2 t3    ~f
+  let bind4 t1 t2 t3 t4 ~f = State.bind4 state t1 t2 t3 t4 ~f
 
   module Infix = struct
     let ( >>| ) t f = map t ~f
-    let ( >>= ) t f = bind t f
+    let ( >>= ) t f = bind t ~f
   end
 
   include Infix
