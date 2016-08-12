@@ -16,6 +16,7 @@ end
 
 module type Config = sig
   module type Incremental_config = Incremental_config
+
   (** A default timing-wheel configuration, with one millisecond precision with alarms up
       to 30 days in the future. *)
   module Default () : Incremental_config

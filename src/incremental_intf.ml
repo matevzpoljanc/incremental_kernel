@@ -349,47 +349,49 @@
 
     Here's a breakdown of the modules in roughly dependency order.
 
-    + [Import] -- imports from other libraries, and commonly used functions
-    + Basic types.
-      - [Cutoff] -- a cutoff function
-      - [On_update_handler] -- a function to run when a node's value changes
-      - [Node_id] -- an integer unique id for nodes
-      - [Raised_exn] -- a wrapper around [exn] that keeps a backtrace.
-      - [Sexp_of] -- interfaces for types that have [with sexp_of].
-      - [Should_not_use] -- a type used for lightweight existentials.
-      - [Stabilization_num] -- an abstract [int option], used to express the stabilization
-        cycle when something happens.
-      - [Uopt] -- an unboxed option type.
-    + [Types] -- mutually recursive types.
-      Many of the types used in the implementation are mutually recursive.  They are
-      all defined in [Types].  Each type is then later defined in its own module, along
-      with [with fields, sexp].
-    + [Kind] -- the variant with one constructor for each kind of node, plus a special
-      constructor for invalidated nodes.  Many of the value-carrying variants also have a
-      module for its argument type:
-      - [Array_fold]
-      - [At]
-      - [At_intervals]
-      - [Bind]
-      - [Freeze]
-      - [If_then_else]
-      - [Join]
-      - [Snapshot]
-      - [Step_function]
-      - [Unordered_array_fold]
-      - [Var]
-    + [Scope] -- a packed bind.
-    + [Node] -- the main node type.
-    + [Internal_observer]
-    + [Observer] -- a [ref] wrapper around [Internal_observer], used so a finalizer
-      can detect when user code is done with an observer.
-    + [Recompute_heap]
-    + [Adjust_heights_heap]
-    + [Alarm_value] -- values stored in the timing wheel, for time-based nodes.
-    + [State] -- the record type will all data structures used for stabilization, and
-      the implementation of all the [Incremental] functions.
-    + [Incremental], the main functor, mostly a wrapper around [State].
-    + [Incremental_unit_tests].
+    {ul
+    {li [Import] -- imports from other libraries, and commonly used functions }
+    {li Basic types.
+        - [Cutoff] -- a cutoff function
+        - [On_update_handler] -- a function to run when a node's value changes
+        - [Node_id] -- an integer unique id for nodes
+        - [Raised_exn] -- a wrapper around [exn] that keeps a backtrace.
+        - [Sexp_of] -- interfaces for types that have [with sexp_of].
+        - [Should_not_use] -- a type used for lightweight existentials.
+        - [Stabilization_num] -- an abstract [int option], used to express the stabilization
+          cycle when something happens.
+        - [Uopt] -- an unboxed option type.  }
+    {li [Types] -- mutually recursive types.
+        Many of the types used in the implementation are mutually recursive.  They are
+        all defined in [Types].  Each type is then later defined in its own module, along
+        with [with fields, sexp].  }
+    {li [Kind] -- the variant with one constructor for each kind of node, plus a special
+        constructor for invalidated nodes.  Many of the value-carrying variants also have a
+        module for its argument type:
+        - [Array_fold]
+        - [At]
+        - [At_intervals]
+        - [Bind]
+        - [Freeze]
+        - [If_then_else]
+        - [Join]
+        - [Snapshot]
+        - [Step_function]
+        - [Unordered_array_fold]
+        - [Var]  }
+    {li [Scope] -- a packed bind. }
+    {li [Node] -- the main node type. }
+    {li [Internal_observer] }
+    {li [Observer] -- a [ref] wrapper around [Internal_observer], used so a finalizer
+        can detect when user code is done with an observer. }
+    {li [Recompute_heap] }
+    {li [Adjust_heights_heap] }
+    {li [Alarm_value] -- values stored in the timing wheel, for time-based nodes. }
+    {li [State] -- the record type will all data structures used for stabilization, and
+        the implementation of all the [Incremental] functions. }
+    {li [Incremental], the main functor, mostly a wrapper around [State]. }
+    {li [Incremental_unit_tests]. }
+    }
 *)
 
 open Core_kernel.Std
@@ -916,9 +918,9 @@ module type S_abstract_times = sig
 
   (** {1 Cutoffs} *)
 
-  (* An ['a Cutoff.t] is a function that returns [true] if propagation of changes should
-     be cutoff at a node based on the old value and the (possible) new value of the
-     node. *)
+  (** An ['a Cutoff.t] is a function that returns [true] if propagation of changes should
+      be cutoff at a node based on the old value and the (possible) new value of the
+      node. *)
   module Cutoff : sig
     type 'a t [@@deriving sexp_of]
 
@@ -934,9 +936,9 @@ module type S_abstract_times = sig
 
     val should_cutoff : 'a t -> old_value:'a -> new_value:'a -> bool
 
-    (* One can use [equal] in combination with [get_cutoff] to check if a node has a
-       particular cutoff function.  [equal] uses [Core.Std.phys_equal] for functional
-       values supplied to [create] and [of_compare]. *)
+    (** One can use [equal] in combination with [get_cutoff] to check if a node has a
+        particular cutoff function.  [equal] uses [Core.Std.phys_equal] for functional
+        values supplied to [create] and [of_compare]. *)
     val equal : 'a t -> 'a t -> bool
   end
 

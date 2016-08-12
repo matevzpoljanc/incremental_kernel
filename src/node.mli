@@ -72,10 +72,13 @@ val pack : _ t -> Packed.t
 
 val same : _ t -> _ t -> bool
 
-(** [iteri_children t ~f] applies [f] to all children of [t].
-    [iteri_parents  t ~f] applies [f] to all necessary parents of [t]. *)
+(** [iteri_children t ~f] applies [f] to all children of [t]. *)
 val iteri_children : _ t -> f:(int -> Packed.t -> unit) -> unit
-(* val iteri_parents  : _ t -> f:(int -> Packed.t -> unit) -> unit *)
+
+(*_
+  (** [iteri_parents  t ~f] applies [f] to all necessary parents of [t]. *)
+  val iteri_parents  : _ t -> f:(int -> Packed.t -> unit) -> unit
+*)
 
 (** [get_parent t ~index] raises unless [0 <= index < t.num_parents]. *)
 val get_parent : _ t -> index:int -> Packed.t

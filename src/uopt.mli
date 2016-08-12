@@ -28,5 +28,5 @@ val is_none : _ t -> bool
 val is_some : _ t -> bool
 val value_exn : 'a t -> 'a
 
-(* It is safe to call [unsafe_value t] iff [is_some t]. *)
+(** It is safe to call [unsafe_value t] iff [is_some t]. *)
 val unsafe_value : 'a t -> 'a
