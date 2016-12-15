@@ -16,7 +16,7 @@ val sexp_of_edge : ('a -> Sexp.t) -> 'a edge -> Sexp.t
 val invariant_about_num_invalid_children : _ t -> is_necessary:bool -> unit
 
 val create
-   : f                       : (unit -> 'a)
+  :  f                       : (unit -> 'a)
   -> on_observability_change : (is_now_observable:bool -> unit)
   -> 'a t
 

@@ -36,9 +36,10 @@ module Packed : sig
   (** [As_list] allows one to view a node as a list w.r.t. a particular [next] pointer
       contained within it.  The recompute heap uses this with [next_in_recompute_heap],
       and the adjust-heights heap uses this with [next_in_adjust_heights_heap]. *)
-  module As_list (M : sig
-                    val next : t -> t Uopt.t
-                  end) : sig
+  module As_list
+      (M : sig
+         val next : t -> t Uopt.t
+       end) : sig
 
     type t = Types.Packed_node.t Uopt.t [@@deriving sexp_of]
 

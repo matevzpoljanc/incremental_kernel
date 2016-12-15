@@ -600,9 +600,10 @@ module Packed = struct
 
   let invariant t = invariant ignore t
 
-  module As_list (M : sig
-                    val next : Packed_node.t -> Packed_node.t Uopt.t
-                  end) = struct
+  module As_list
+      (M : sig
+         val next : Packed_node.t -> Packed_node.t Uopt.t
+       end) = struct
 
     type t = Packed_node.t Uopt.t
 

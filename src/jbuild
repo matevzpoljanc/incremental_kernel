@@ -3,6 +3,8 @@
   (inline_tests ((javascript build_and_run)))
   (public_name incremental_kernel)
   (libraries (core_kernel))
-  (preprocess (((pps (JANE_KERNEL -check-doc-comments)) All)))
+  (preprocess (pps (ppx_jane.kernel -check-doc-comments)))
   (preprocessor_deps (debug.mlh))
   (js_of_ocaml ())))
+
+(enforce_style ((exceptions (import.ml))))

@@ -485,20 +485,20 @@ let propagate_invalidity t =
       else begin
         (* [Node.needs_to_be_computed node] is true because
            - node is necessary. This is because children can only point to necessary
-             parents
+           parents
            - node is stale. This is because:
-             For bind, if, join, this is true because
-             - either the invalidation is caused by the lhs changing (in which case the
-               lhs-change node being newer makes us stale).
-             - or a child became invalid this stabilization cycle, in which case it
-               has t.changed_at of [t.stabilization_num], and so [node] is stale
-             - or [node] just became necessary and tried connecting to an already invalid
-               child. In that case, [child.changed_at > node.recomputed_at] for that
-               child, because if we had been recomputed when that child changed, we would
-               have been made invalid back then.
-             For expert nodes, the argument is the same, except that instead of lhs-change
-             nodes make the expert nodes stale, it's made stale explicitely when adding
-             or removing children. *)
+           For bind, if, join, this is true because
+           - either the invalidation is caused by the lhs changing (in which case the
+           lhs-change node being newer makes us stale).
+           - or a child became invalid this stabilization cycle, in which case it
+           has t.changed_at of [t.stabilization_num], and so [node] is stale
+           - or [node] just became necessary and tried connecting to an already invalid
+           child. In that case, [child.changed_at > node.recomputed_at] for that
+           child, because if we had been recomputed when that child changed, we would
+           have been made invalid back then.
+           For expert nodes, the argument is the same, except that instead of lhs-change
+           nodes make the expert nodes stale, it's made stale explicitely when adding
+           or removing children. *)
         if debug then assert (Node.needs_to_be_computed node);
         begin match node.kind with
         | Expert expert ->
@@ -550,7 +550,7 @@ and became_necessary : type a. t -> a Node.t -> unit = fun t node ->
      because [Node.iter_children] below first visits the lhs-change of bind nodes and then
      the rhs. *)
   if Node.is_valid node
-     && not (Scope.is_necessary node.created_in)
+  && not (Scope.is_necessary node.created_in)
   then failwiths "Trying to make a node necessary whose defining bind is not necessary"
          node [%sexp_of: _ Node.t];
   t.num_nodes_became_necessary <- t.num_nodes_became_necessary + 1;

@@ -352,43 +352,43 @@
     {ul
     {li [Import] -- imports from other libraries, and commonly used functions }
     {li Basic types.
-        - [Cutoff] -- a cutoff function
-        - [On_update_handler] -- a function to run when a node's value changes
-        - [Node_id] -- an integer unique id for nodes
-        - [Raised_exn] -- a wrapper around [exn] that keeps a backtrace.
-        - [Sexp_of] -- interfaces for types that have [with sexp_of].
-        - [Should_not_use] -- a type used for lightweight existentials.
-        - [Stabilization_num] -- an abstract [int option], used to express the stabilization
-          cycle when something happens.
-        - [Uopt] -- an unboxed option type.  }
+    - [Cutoff] -- a cutoff function
+    - [On_update_handler] -- a function to run when a node's value changes
+    - [Node_id] -- an integer unique id for nodes
+    - [Raised_exn] -- a wrapper around [exn] that keeps a backtrace.
+    - [Sexp_of] -- interfaces for types that have [with sexp_of].
+    - [Should_not_use] -- a type used for lightweight existentials.
+    - [Stabilization_num] -- an abstract [int option], used to express the stabilization
+    cycle when something happens.
+    - [Uopt] -- an unboxed option type.  }
     {li [Types] -- mutually recursive types.
-        Many of the types used in the implementation are mutually recursive.  They are
-        all defined in [Types].  Each type is then later defined in its own module, along
-        with [with fields, sexp].  }
+    Many of the types used in the implementation are mutually recursive.  They are
+    all defined in [Types].  Each type is then later defined in its own module, along
+    with [with fields, sexp].  }
     {li [Kind] -- the variant with one constructor for each kind of node, plus a special
-        constructor for invalidated nodes.  Many of the value-carrying variants also have a
-        module for its argument type:
-        - [Array_fold]
-        - [At]
-        - [At_intervals]
-        - [Bind]
-        - [Freeze]
-        - [If_then_else]
-        - [Join]
-        - [Snapshot]
-        - [Step_function]
-        - [Unordered_array_fold]
-        - [Var]  }
+    constructor for invalidated nodes.  Many of the value-carrying variants also have a
+    module for its argument type:
+    - [Array_fold]
+    - [At]
+    - [At_intervals]
+    - [Bind]
+    - [Freeze]
+    - [If_then_else]
+    - [Join]
+    - [Snapshot]
+    - [Step_function]
+    - [Unordered_array_fold]
+    - [Var]  }
     {li [Scope] -- a packed bind. }
     {li [Node] -- the main node type. }
     {li [Internal_observer] }
     {li [Observer] -- a [ref] wrapper around [Internal_observer], used so a finalizer
-        can detect when user code is done with an observer. }
+    can detect when user code is done with an observer. }
     {li [Recompute_heap] }
     {li [Adjust_heights_heap] }
     {li [Alarm_value] -- values stored in the timing wheel, for time-based nodes. }
     {li [State] -- the record type will all data structures used for stabilization, and
-        the implementation of all the [Incremental] functions. }
+    the implementation of all the [Incremental] functions. }
     {li [Incremental], the main functor, mostly a wrapper around [State]. }
     {li [Incremental_unit_tests]. }
     }
@@ -397,7 +397,7 @@
 open Core_kernel.Std
 open! Import
 
-module type S_abstract_times = sig
+module type S_without_times = sig
 
   (** [type 'a t] is the type of incrementals that have a value of type ['a].
 
@@ -655,93 +655,6 @@ module type S_abstract_times = sig
       cut down on floating-point error. *)
   val sum_float : float t array -> float t
 
-  (** {1 Time}
-
-      Incremental has a timing-wheel-based clock, and lets one build incremental values
-      that change as its time passes.  One must explicitly call [advance_clock] to change
-      incremental's clock; there is no implicit call based on the passage of time. *)
-
-  (** A given incremental functor may use either [Time_ns] or [Time]. *)
-  module Time : sig
-    type t
-    module Span : sig
-      type t
-    end
-  end
-
-  (** The [alarm_precision] of the underlying timing wheel. *)
-  val alarm_precision : Time_ns.Span.t
-
-  (** [now t] returns the current time of incremental's clock. *)
-  val now : unit -> Time.t
-
-  (** [watch_now t] returns an incremental that tracks the current time. *)
-  val watch_now : unit -> Time.t t
-
-  (** [advance_clock t ~to_] moves incremental's clock forward to [to_].  [advance_clock]
-      raises if [to_ < now t].  As with [Var.set], the effect of [advance_clock] is not
-      seen on incremental values until the next stabilization.  Unlike [Var.set], calling
-      [advance_clock] during stabilization raises.
-
-      In certain pathological cases, [advance_clock] can raise due to it detecting a
-      cycle in the incremental graph. *)
-  val advance_clock : to_:Time.t -> unit
-
-  (** [at time] returns an incremental that is [Before] when [now () <= time] and
-      [After] when [now () >= time + alarm_precision].  When [now ()] is between [time]
-      and [time + alarm_precision], [at time] might be [Before] or [After], due to the
-      fundamental imprecision of the timing wheel.  One is guaranteed that an [at] never
-      becomes [After] too early, but it may become [After] up to [alarm_precision] late.
-
-      [after span] is [at (Time.add (now ()) span)]. *)
-  module Before_or_after : sig
-    type t = Before | After
-    [@@deriving sexp_of]
-  end
-  val at    : Time.t      -> Before_or_after.t t
-  val after : Time.Span.t -> Before_or_after.t t
-
-  (** [at_intervals interval] returns an incremental whose value changes at time intervals
-      of the form:
-
-      {[
-        Time.next_multiple ~base ~after ~interval
-      ]}
-
-      where [base] is [now ()] when [at_intervals] was called and [after] is the current
-      [now ()].  As with [at], [at_intervals] might fire up to [alarm_precision] late.
-
-      [at_intervals] raises if [interval < alarm_precision].  The [unit t] that
-      [at_intervals] returns has its cutoff set to [Cutoff.never], so that although its
-      value is always [()], incrementals that depend on it will refire each time it is
-      set.  The result of [at_intervals] remains alive and is updated until the left-hand
-      side of its defining bind changes, at which point it becomes invalid. *)
-  val at_intervals : Time.Span.t -> unit t
-
-  (** [step_function ~init [(t1, v1); ...; (tn, vn)]] returns an incremental whose initial
-      value is [init] and takes on the values [v1], ..., [vn] in sequence taking on the
-      value [vi] when the clock's time passes [ti].  As with [at], the steps might take
-      effect up to [alarm_precision] late.
-
-      It is possible for [vi] to be skipped if time advances from [t(i-1)] to some time
-      greater than [t(i+1)].
-
-      The times must be in nondecreasing order, i.e. [step_function] raises if for some [i
-      < j], [ti > tj]. *)
-  val step_function : init:'a -> (Time.t * 'a) list -> 'a t
-
-  (** [snapshot value_at ~at ~before] returns an incremental whose value is [before]
-      before [at] and whose value is frozen to the value of [value_at] during the first
-      stabilization after which the time passes [at].  [snapshot] causes [value_at] to be
-      necessary during the first stabilization after which time passes [at] even if the
-      [snapshot] node itself is not necessary, but not thereafter (although of course
-      [value_at] could remain necessary for other reasons).  The result of [snapshot] will
-      only be invalidated if [value_at] is invalid at the moment of the snapshot.
-
-      [snapshot] returns [Error] if [at < now ()], because it is impossible to take the
-      snapshot because the time has already passed. *)
-  val snapshot : 'a t -> at:Time.t -> before:'a -> 'a t Or_error.t
-
   (** {1 Variables} *)
 
   module Var : sig
@@ -946,7 +859,7 @@ module type S_abstract_times = sig
       [cutoff] will be called any time [t] is recomputed, with [old_value] being the value
       of [t] before the recomputation and [new_value] being the value that just
       recomputed.  If [cutoff ~old_value ~new_value], then [t]'s value will remain as
-      [old_value] ([new_value] is discarded) and the anything depending on [t] will not be
+      [old_value] ([new_value] is discarded) and anything depending on [t] will not be
       recomputed (at least not because of [t]).  If [not (cutoff ~old_value ~new_value)],
       then [t]'s value will become [new_value], and all nodes depending on [t] will
       recomputed.
@@ -1098,46 +1011,46 @@ module type S_abstract_times = sig
           functions below on the parent nodes.  Any behavior that works on all incremental
           nodes (cutoff, invalidation, debug info etc) also work on [t]. *)
       val create
-         :  ?on_observability_change : (is_now_observable:bool -> unit)
-         -> (unit -> 'a)
-         -> 'a t
+        :  ?on_observability_change : (is_now_observable:bool -> unit)
+        -> (unit -> 'a)
+        -> 'a t
 
-       (** [watch t] allows you to plug [t] in the rest of the incremental graph, but it's
-           also useful to set a cutoff function, debug info etc. *)
-       val watch : 'a t -> 'a incremental
+      (** [watch t] allows you to plug [t] in the rest of the incremental graph, but it's
+          also useful to set a cutoff function, debug info etc. *)
+      val watch : 'a t -> 'a incremental
 
-       (** Calling [make_stale t] ensures that incremental will recompute [t] before
-           anyone reads its value.  [t] may not fire though, if it never becomes
-           necessary.  This is intended to be called only from a child of [t].  Along with
-           a well chosen cutoff function, it allows to choose which parents should
-           fire. *)
-       val make_stale : _ t -> unit
+      (** Calling [make_stale t] ensures that incremental will recompute [t] before
+          anyone reads its value.  [t] may not fire though, if it never becomes
+          necessary.  This is intended to be called only from a child of [t].  Along with
+          a well chosen cutoff function, it allows to choose which parents should
+          fire. *)
+      val make_stale : _ t -> unit
 
-       (** [invalidate t] makes [t] invalid, as if its surrounding bind had changed.  This
-           is intended to be called only from a child of [t]. *)
-       val invalidate : _ t -> unit
+      (** [invalidate t] makes [t] invalid, as if its surrounding bind had changed.  This
+          is intended to be called only from a child of [t]. *)
+      val invalidate : _ t -> unit
 
-       (** [add_dependency t dep] makes [t] depend on the child incremental in the [dep].
-           If [dep] is already used to link the child incremental to another parent, an
-           exception is raised.
+      (** [add_dependency t dep] makes [t] depend on the child incremental in the [dep].
+          If [dep] is already used to link the child incremental to another parent, an
+          exception is raised.
 
-           This is intended to be called either outside of stabilization, or right after
-           creating [t], or from a child of [t] (and in that case, as a consequence [t]
-           must be necessary).
+          This is intended to be called either outside of stabilization, or right after
+          creating [t], or from a child of [t] (and in that case, as a consequence [t]
+          must be necessary).
 
-           The [on_change] callback of [dep] will be fired when [t] becomes observable,
-           or immediately, or whenever the child changes as long as [t] is observable.
-           When this function is called due to observability changes, the callback may
-           fire several times in the same stabilization, so it should be idempotent. The
-           callback must not change the incremental graph, particularly not the
-           dependencies of [t].
+          The [on_change] callback of [dep] will be fired when [t] becomes observable,
+          or immediately, or whenever the child changes as long as [t] is observable.
+          When this function is called due to observability changes, the callback may
+          fire several times in the same stabilization, so it should be idempotent. The
+          callback must not change the incremental graph, particularly not the
+          dependencies of [t].
 
-           All the [on_change] callbacks are guaranteed to be run before the callback of
-           [create] is run. *)
-       val add_dependency : _ t -> _ Dependency.t -> unit
+          All the [on_change] callbacks are guaranteed to be run before the callback of
+          [create] is run. *)
+      val add_dependency : _ t -> _ Dependency.t -> unit
 
-       (** [remove_dependency t dep] can only be called from a child of [t]. *)
-       val remove_dependency : _ t -> _ Dependency.t -> unit
+      (** [remove_dependency t dep] can only be called from a child of [t]. *)
+      val remove_dependency : _ t -> _ Dependency.t -> unit
     end
   end
 
@@ -1239,12 +1152,104 @@ module type S_abstract_times = sig
   end
 end
 
+module type S_abstract_times = sig
+  include S_without_times
+
+  (** {1 Time}
+
+      Incremental has a timing-wheel-based clock, and lets one build incremental values
+      that change as its time passes.  One must explicitly call [advance_clock] to change
+      incremental's clock; there is no implicit call based on the passage of time. *)
+
+  (** A given incremental functor may use either [Time_ns] or [Time]. *)
+  module Time : sig
+    type t
+    module Span : sig
+      type t
+    end
+  end
+
+  (** The [alarm_precision] of the underlying timing wheel. *)
+  val alarm_precision : Time_ns.Span.t
+
+  (** [now t] returns the current time of incremental's clock. *)
+  val now : unit -> Time.t
+
+  (** [watch_now t] returns an incremental that tracks the current time. *)
+  val watch_now : unit -> Time.t t
+
+  (** [advance_clock t ~to_] moves incremental's clock forward to [to_].  [advance_clock]
+      raises if [to_ < now t].  As with [Var.set], the effect of [advance_clock] is not
+      seen on incremental values until the next stabilization.  Unlike [Var.set], calling
+      [advance_clock] during stabilization raises.
+
+      In certain pathological cases, [advance_clock] can raise due to it detecting a
+      cycle in the incremental graph. *)
+  val advance_clock : to_:Time.t -> unit
+
+  (** [at time] returns an incremental that is [Before] when [now () <= time] and
+      [After] when [now () >= time + alarm_precision].  When [now ()] is between [time]
+      and [time + alarm_precision], [at time] might be [Before] or [After], due to the
+      fundamental imprecision of the timing wheel.  One is guaranteed that an [at] never
+      becomes [After] too early, but it may become [After] up to [alarm_precision] late.
+
+      [after span] is [at (Time.add (now ()) span)]. *)
+  module Before_or_after : sig
+    type t = Before | After
+    [@@deriving sexp_of]
+  end
+  val at    : Time.t      -> Before_or_after.t t
+  val after : Time.Span.t -> Before_or_after.t t
+
+  (** [at_intervals interval] returns an incremental whose value changes at time intervals
+      of the form:
+
+      {[
+        Time.next_multiple ~base ~after ~interval
+      ]}
+
+      where [base] is [now ()] when [at_intervals] was called and [after] is the current
+      [now ()].  As with [at], [at_intervals] might fire up to [alarm_precision] late.
+
+      [at_intervals] raises if [interval < alarm_precision].  The [unit t] that
+      [at_intervals] returns has its cutoff set to [Cutoff.never], so that although its
+      value is always [()], incrementals that depend on it will refire each time it is
+      set.  The result of [at_intervals] remains alive and is updated until the left-hand
+      side of its defining bind changes, at which point it becomes invalid. *)
+  val at_intervals : Time.Span.t -> unit t
+
+  (** [step_function ~init [(t1, v1); ...; (tn, vn)]] returns an incremental whose initial
+      value is [init] and takes on the values [v1], ..., [vn] in sequence taking on the
+      value [vi] when the clock's time passes [ti].  As with [at], the steps might take
+      effect up to [alarm_precision] late.
+
+      It is possible for [vi] to be skipped if time advances from [t(i-1)] to some time
+      greater than [t(i+1)].
+
+      The times must be in nondecreasing order, i.e. [step_function] raises if for some [i
+      < j], [ti > tj]. *)
+  val step_function : init:'a -> (Time.t * 'a) list -> 'a t
+
+  (** [snapshot value_at ~at ~before] returns an incremental whose value is [before]
+      before [at] and whose value is frozen to the value of [value_at] during the first
+      stabilization after which the time passes [at].  [snapshot] causes [value_at] to be
+      necessary during the first stabilization after which time passes [at] even if the
+      [snapshot] node itself is not necessary, but not thereafter (although of course
+      [value_at] could remain necessary for other reasons).  The result of [snapshot] will
+      only be invalidated if [value_at] is invalid at the moment of the snapshot.
+
+      [snapshot] returns [Error] if [at < now ()], because it is impossible to take the
+      snapshot because the time has already passed. *)
+  val snapshot : 'a t -> at:Time.t -> before:'a -> 'a t Or_error.t
+end
+
 module type S = S_abstract_times with module Time := Time_ns
 
 module type Incremental = sig
 
   module type Incremental_config = Config.Incremental_config
   module type S_abstract_times = S_abstract_times
+  module type S_without_times  = S_without_times
   module type S = S
 
   module Config = Config

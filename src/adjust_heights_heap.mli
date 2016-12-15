@@ -62,7 +62,7 @@ val set_height : t -> _ Node.t -> int -> unit
     1. remove an [n] in [t] with minimum [n.height_in_adjust_heights_heap].
     2. [Recompute_heap.increase_height recompute_heap n].
     3. for all parents [p] of [n], if [n.height >= p.height], then ensure [p] is in [t]
-       and set [p.height] to [n.height + 1] and
+    and set [p.height] to [n.height + 1] and
 
     If [adjust_heights] ever encounters [child] while visiting the ancestors of [parent],
     then there is a cycle in the graph and [adjust_heights] raises.

@@ -2,3 +2,5 @@
  ((name incremental_kernel_test)
   (libraries (incremental_kernel
               expect_test_helpers))))
+
+(enforce_style ())

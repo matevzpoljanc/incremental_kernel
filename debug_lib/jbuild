@@ -11,5 +11,4 @@
   (libraries
    (core_kernel
     incremental_kernel))
-  (wrapped false)
   (preprocessor_deps (debug.mlh))))
