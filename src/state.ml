@@ -804,7 +804,7 @@ and copy_child : type a. t -> parent:a Node.t -> child:a Node.t -> unit =
     end;
 
 and maybe_change_value : type a. t -> a Node.t -> a -> unit =
-  fun (type b) t (node : _ Node.t) new_value ->
+  fun t (node : _ Node.t) new_value ->
     let old_value_opt = node.value_opt in
     if Uopt.is_none old_value_opt
     || not (Cutoff.should_cutoff node.cutoff
@@ -858,9 +858,10 @@ and maybe_change_value : type a. t -> a Node.t -> a -> unit =
           if not (Node.is_in_recompute_heap parent)
           then Recompute_heap.add t.recompute_heap parent;
         done;
+        let module E = struct type t end in
         let parent =
           (* This [Obj.magic] is unpacking an existential. *)
-          (Obj.magic (Uopt.value_exn node.parent0 : Should_not_use.t Node.t) : b Node.t)
+          (Obj.magic (Uopt.value_exn node.parent0 : Should_not_use.t Node.t) : E.t Node.t)
         in
         begin match parent.kind with
         | Expert p ->

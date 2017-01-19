@@ -144,7 +144,7 @@ let ensure_height_requirement t ~original_child ~original_parent ~child ~parent 
   end;
 ;;
 
-let adjust_heights (type a) (type b) (type c)
+let adjust_heights (type a) (type b)
       t recompute_heap
       ~child:(original_child : a Node.t)
       ~parent:(original_parent : b Node.t) =
@@ -157,8 +157,9 @@ let adjust_heights (type a) (type b) (type c)
   ensure_height_requirement t ~original_child ~original_parent
     ~child:original_child ~parent:original_parent;
   while length t > 0 do
+    let module E = struct type t end in
     (* This [Obj.magic] is to unpack an existential. *)
-    let child = (Obj.magic (remove_min_exn t : Should_not_use.t Node.t) : c Node.t) in
+    let child = (Obj.magic (remove_min_exn t : Should_not_use.t Node.t) : E.t Node.t) in
     if Node.is_in_recompute_heap child
     then Recompute_heap.increase_height recompute_heap child;
     if child.num_parents > 0 then begin
