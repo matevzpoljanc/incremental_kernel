@@ -850,7 +850,7 @@ module type S_without_times = sig
     val should_cutoff : 'a t -> old_value:'a -> new_value:'a -> bool
 
     (** One can use [equal] in combination with [get_cutoff] to check if a node has a
-        particular cutoff function.  [equal] uses [Core.Std.phys_equal] for functional
+        particular cutoff function.  [equal] uses [Core.phys_equal] for functional
         values supplied to [create] and [of_compare]. *)
     val equal : 'a t -> 'a t -> bool
   end

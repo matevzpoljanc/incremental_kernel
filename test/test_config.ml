@@ -1,4 +1,4 @@
-open! Core.Std
+open! Core
 open! Import
 
 let%expect_test "default timing-wheel precision and level durations" =
