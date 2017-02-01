@@ -3,7 +3,7 @@
     A [Var.t] is a leaf in the incremental DAG.
 *)
 
-open! Core_kernel.Std
+open! Core_kernel
 open! Import
 
 include module type of struct include Types.Var end

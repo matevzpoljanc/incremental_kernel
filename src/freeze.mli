@@ -4,7 +4,7 @@
     and doesn't change thereafter.
 *)
 
-open! Core_kernel.Std
+open! Core_kernel
 open! Import
 
 include module type of struct include Types.Freeze end

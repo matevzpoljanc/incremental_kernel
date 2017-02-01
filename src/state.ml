@@ -5,7 +5,7 @@
    [Incremental_intf.S], except adding an extra [State.t] argument to functions.
 *)
 
-open Core_kernel.Std
+open Core_kernel
 open Import
 open Types.Kind
 

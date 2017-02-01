@@ -3,7 +3,7 @@
     An ['a If_then_else.t] is a kind of DAG node.
 *)
 
-open! Core_kernel.Std
+open! Core_kernel
 open! Import
 
 include module type of struct include Types.If_then_else end

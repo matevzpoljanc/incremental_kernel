@@ -4,7 +4,7 @@
     functions: [at], [at_interval], [snapshot], [step_function].
 *)
 
-open! Core_kernel.Std
+open! Core_kernel
 open! Import
 
 include module type of struct include Types.Alarm_value end

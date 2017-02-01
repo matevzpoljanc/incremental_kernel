@@ -8,7 +8,7 @@
    sexp converter that would try to produce an infinite sexp.
 *)
 
-open Core_kernel.Std
+open Core_kernel
 open Import
 
 module rec Alarm : sig

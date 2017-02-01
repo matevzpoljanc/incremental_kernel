@@ -394,7 +394,7 @@
     }
 *)
 
-open Core_kernel.Std
+open Core_kernel
 open! Import
 
 module type S_without_times = sig

@@ -4,7 +4,7 @@
     to ['a] with a finite number of steps.  The steps are in nondecreasing time order.
 *)
 
-open! Core_kernel.Std
+open! Core_kernel
 open! Import
 
 include module type of struct include Types.Step_function end

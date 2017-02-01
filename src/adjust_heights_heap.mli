@@ -8,7 +8,7 @@
     them in increasing order of pre-adjusted height.
 *)
 
-open! Core_kernel.Std
+open! Core_kernel
 open! Import
 open Types
 

@@ -4,7 +4,7 @@
     cutoff at a node based on the old value and the (possible) new value of the node.
 *)
 
-open! Core_kernel.Std
+open! Core_kernel
 open! Import
 
 type 'a t [@@deriving sexp_of]

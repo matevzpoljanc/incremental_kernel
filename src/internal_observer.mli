@@ -4,7 +4,7 @@
     "necessary", so that stabilization ensures their values are up to date.
 *)
 
-open! Core_kernel.Std
+open! Core_kernel
 open! Import
 
 include module type of struct include Types.Internal_observer end

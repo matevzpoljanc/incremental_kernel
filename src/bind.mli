@@ -25,7 +25,7 @@
     [t.lhs_change] fires).
 *)
 
-open! Core_kernel.Std
+open! Core_kernel
 open! Import
 
 include module type of struct include Types.Bind end

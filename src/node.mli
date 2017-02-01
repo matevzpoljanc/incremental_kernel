@@ -13,7 +13,7 @@
     [t].  I.e. it implies that all necessary nodes aren't stale.
 *)
 
-open! Core_kernel.Std
+open! Core_kernel
 open! Import
 
 (** For performance reasons, we do not use an OCaml existential type for [Node.Packed.t]:

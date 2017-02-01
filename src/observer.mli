@@ -7,7 +7,7 @@
     a finalizer to resurrect the observer, it will still have [not (use_is_allowed t)].
 *)
 
-open! Core_kernel.Std
+open! Core_kernel
 open! Import
 
 include module type of struct include Types.Observer end

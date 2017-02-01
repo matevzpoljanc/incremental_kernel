@@ -6,7 +6,7 @@
     height.
 *)
 
-open! Core_kernel.Std
+open! Core_kernel
 open! Import
 
 type t [@@deriving sexp_of]

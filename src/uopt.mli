@@ -15,7 +15,7 @@
     immediate, which probably doesn't happen in incremental anyway).
 *)
 
-open! Core_kernel.Std
+open! Core_kernel
 open! Import
 
 type 'a t = private 'a [@@deriving sexp_of]

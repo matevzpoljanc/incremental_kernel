@@ -3,7 +3,7 @@
     Node ids are consecutive integers assigned to nodes as they are created.
 *)
 
-open! Core_kernel.Std
+open! Core_kernel
 open! Import
 
 type t = private int [@@deriving compare, sexp_of]

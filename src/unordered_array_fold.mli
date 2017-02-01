@@ -4,7 +4,7 @@
     of value being folded and ['acc] is the type of the accumulator.
 *)
 
-open! Core_kernel.Std
+open! Core_kernel
 open! Import
 
 include module type of struct include Types.Unordered_array_fold end

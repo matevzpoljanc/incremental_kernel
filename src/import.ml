@@ -1,6 +1,6 @@
 #import "debug.mlh"
 
-open Core_kernel.Std
+open Core_kernel
 
 include Int.Replace_polymorphic_compare
 

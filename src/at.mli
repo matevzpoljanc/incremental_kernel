@@ -4,7 +4,7 @@
     certain time, at which point its value becomes [After].
 *)
 
-open! Core_kernel.Std
+open! Core_kernel
 open! Import
 
 include module type of struct include Types.At end

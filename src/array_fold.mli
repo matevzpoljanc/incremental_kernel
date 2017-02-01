@@ -4,7 +4,7 @@
     children of type ['a] and can [compute] the fold to produce a value of type ['b].
 *)
 
-open! Core_kernel.Std
+open! Core_kernel
 open! Import
 
 include module type of struct include Types.Array_fold end
