@@ -1,6 +1,6 @@
 open! Core
-open! Async.Std
+open! Async
 
 include Expect_test_helpers
 
-module Incremental = Incremental_kernel.Std.Incremental
+module Incremental = Incremental_kernel.Incremental
