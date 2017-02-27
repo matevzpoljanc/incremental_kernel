@@ -13,3 +13,5 @@
     incremental_kernel))
   (js_of_ocaml ())
   (preprocessor_deps (debug.mlh))))
+
+(jbuild_version jane_street)

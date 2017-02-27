@@ -4,3 +4,5 @@
               expect_test_helpers))))
 
 (enforce_style ())
+
+(jbuild_version jane_street)

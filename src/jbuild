@@ -8,3 +8,5 @@
   (js_of_ocaml ())))
 
 (enforce_style ((exceptions (import.ml))))
+
+(jbuild_version jane_street)
