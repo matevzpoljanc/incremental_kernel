@@ -11,7 +11,7 @@
   (libraries
    (core_kernel
     incremental_kernel))
-  (js_of_ocaml ())
-  (preprocessor_deps (debug.mlh))))
+  (preprocessor_deps (debug.mlh))
+  (preprocess (pps (ppx_jane)))))
 
 (jbuild_version jane_street)

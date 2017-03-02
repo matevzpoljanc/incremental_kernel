@@ -1,8 +1,8 @@
 (library
  ((name incremental_kernel_test)
   (libraries (incremental_kernel
-              expect_test_helpers))))
+              expect_test_helpers))
+  (preprocess (pps (ppx_jane)))))
 
-(enforce_style ())
 
 (jbuild_version jane_street)
