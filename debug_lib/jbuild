@@ -4,7 +4,7 @@
           (glob_files ../src/*.ml)
           (glob_files ../src/*.mli)
           ./generate_debug_lib.sh))
-   (action "./generate_debug_lib.sh incremental_kernel incremental_kernel_debug cat")))
+   (action (bash "./generate_debug_lib.sh incremental_kernel incremental_kernel_debug cat"))))
 
 (library
  ((name incremental_kernel_debug)
