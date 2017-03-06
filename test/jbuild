@@ -2,7 +2,7 @@
  ((name incremental_kernel_test)
   (libraries (incremental_kernel
               expect_test_helpers))
-  (preprocess (pps (ppx_jane)))))
+  (preprocess (pps (ppx_jane ppx_driver.runner)))))
 
 
 (jbuild_version jane_street)
