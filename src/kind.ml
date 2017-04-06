@@ -5,25 +5,25 @@ module Node = Types.Node
 module Packed_node = Types.Packed_node
 
 type 'a t = 'a Types.Kind.t =
-  | Array_fold            : (_, 'a) Array_fold.t -> 'a t
-  | At                    : At.t -> Before_or_after.t t
-  | At_intervals          : At_intervals.t -> unit t
-  | Bind_lhs_change       : (_, _) Bind.t -> unit t
-  | Bind_main             : (_, 'a) Bind.t -> 'a t
-  | Const                of 'a
-  | Expert               of 'a Expert.t
-  | Freeze               of 'a Freeze.t
-  | If_test_change        : _ If_then_else.t -> unit t
-  | If_then_else         of 'a If_then_else.t
+  | Array_fold              : (_, 'a) Array_fold.t -> 'a t
+  | At                      : At.t -> Before_or_after.t t
+  | At_intervals            : At_intervals.t -> unit t
+  | Bind_lhs_change         : (_, _) Bind.t -> unit t
+  | Bind_main               : (_, 'a) Bind.t -> 'a t
+  | Const                  of 'a
+  | Expert                 of 'a Expert.t
+  | Freeze                 of 'a Freeze.t
+  | If_test_change          : _ If_then_else.t -> unit t
+  | If_then_else           of 'a If_then_else.t
   | Invalid
-  | Join_lhs_change       : _ Join.t -> unit t
-  | Join_main            of 'a Join.t
-  | Map                   : ('a1 -> 'a) * 'a1 Node.t -> 'a t
-  | Snapshot             of 'a Snapshot.t
-  | Step_function        of 'a Step_function.t
+  | Join_lhs_change         : _ Join.t -> unit t
+  | Join_main              of 'a Join.t
+  | Map                     : ('a1 -> 'a) * 'a1 Node.t -> 'a t
+  | Snapshot               of 'a Snapshot.t
+  | Step_function          of 'a Step_function.t
   | Uninitialized
-  | Unordered_array_fold  : (_, 'a) Unordered_array_fold.t -> 'a t
-  | Var                  of 'a Var.t
+  | Unordered_array_fold    : (_, 'a) Unordered_array_fold.t -> 'a t
+  | Var                    of 'a Var.t
   | Map2
     : ('a1 -> 'a2 -> 'a)
       * 'a1 Node.t * 'a2 Node.t
@@ -61,34 +61,34 @@ type 'a t = 'a Types.Kind.t =
     -> 'a t
 [@@deriving sexp_of]
 
-let name : type a. a t -> string = function
-  | Array_fold _           -> "Array_fold"
-  | At _                   -> "At"
-  | At_intervals _         -> "At_intervals"
-  | Bind_lhs_change _      -> "Bind_lhs_change"
-  | Bind_main _            -> "Bind_main"
-  | Const _                -> "Const"
-  | Expert _               -> "Expert"
-  | Freeze _               -> "Freeze"
-  | If_test_change _       -> "If_test_change"
-  | If_then_else _         -> "If_then_else"
-  | Invalid                -> "Invalid"
-  | Join_lhs_change _      -> "Join_lhs_change"
-  | Join_main _            -> "Join_main"
-  | Map _                  -> "Map"
-  | Map2 _                 -> "Map2"
-  | Map3 _                 -> "Map3"
-  | Map4 _                 -> "Map4"
-  | Map5 _                 -> "Map5"
-  | Map6 _                 -> "Map6"
-  | Map7 _                 -> "Map7"
-  | Map8 _                 -> "Map8"
-  | Map9 _                 -> "Map9"
-  | Snapshot _             -> "Snapshot"
-  | Step_function _        -> "Step_function"
-  | Uninitialized          -> "Uninitialized"
-  | Unordered_array_fold _ -> "Unordered_array_fold"
-  | Var _                  -> "Var"
+let name : type a. a t       -> string = function
+  | Array_fold _             -> "Array_fold"
+  | At _                     -> "At"
+  | At_intervals _           -> "At_intervals"
+  | Bind_lhs_change _        -> "Bind_lhs_change"
+  | Bind_main _              -> "Bind_main"
+  | Const _                  -> "Const"
+  | Expert _                 -> "Expert"
+  | Freeze _                 -> "Freeze"
+  | If_test_change _         -> "If_test_change"
+  | If_then_else _           -> "If_then_else"
+  | Invalid                  -> "Invalid"
+  | Join_lhs_change _        -> "Join_lhs_change"
+  | Join_main _              -> "Join_main"
+  | Map _                    -> "Map"
+  | Map2 _                   -> "Map2"
+  | Map3 _                   -> "Map3"
+  | Map4 _                   -> "Map4"
+  | Map5 _                   -> "Map5"
+  | Map6 _                   -> "Map6"
+  | Map7 _                   -> "Map7"
+  | Map8 _                   -> "Map8"
+  | Map9 _                   -> "Map9"
+  | Snapshot _               -> "Snapshot"
+  | Step_function _          -> "Step_function"
+  | Uninitialized            -> "Uninitialized"
+  | Unordered_array_fold _   -> "Unordered_array_fold"
+  | Var _                    -> "Var"
 ;;
 
 let invariant : type a . a Invariant.t -> a t Invariant.t = fun invariant_a t ->

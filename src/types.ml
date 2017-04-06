@@ -131,25 +131,25 @@ end = Join
 
 and Kind : sig
   type 'a t =
-    | Array_fold            : (_, 'a) Array_fold.t -> 'a t
-    | At                    : At.t -> Before_or_after.t t
-    | At_intervals          : At_intervals.t -> unit t
-    | Bind_lhs_change       : (_, _) Bind.t -> unit t
-    | Bind_main             : (_, 'a) Bind.t -> 'a t
-    | Const                of 'a
-    | Expert               of 'a Expert.t
-    | Freeze               of 'a Freeze.t
-    | If_test_change        : _ If_then_else.t -> unit t
-    | If_then_else         of 'a If_then_else.t
+    | Array_fold             : (_, 'a) Array_fold.t -> 'a t
+    | At                     : At.t -> Before_or_after.t t
+    | At_intervals           : At_intervals.t -> unit t
+    | Bind_lhs_change        : (_, _) Bind.t -> unit t
+    | Bind_main              : (_, 'a) Bind.t -> 'a t
+    | Const                  of 'a
+    | Expert                 of 'a Expert.t
+    | Freeze                 of 'a Freeze.t
+    | If_test_change         : _ If_then_else.t -> unit t
+    | If_then_else           of 'a If_then_else.t
     | Invalid
-    | Join_lhs_change       : _ Join.t -> unit t
-    | Join_main            of 'a Join.t
-    | Map                   : ('a1 -> 'a) * 'a1 Node.t -> 'a t
-    | Snapshot             of 'a Snapshot.t
-    | Step_function        of 'a Step_function.t
+    | Join_lhs_change        : _ Join.t -> unit t
+    | Join_main              of 'a Join.t
+    | Map                    : ('a1 -> 'a) * 'a1 Node.t -> 'a t
+    | Snapshot               of 'a Snapshot.t
+    | Step_function          of 'a Step_function.t
     | Uninitialized
-    | Unordered_array_fold  : (_, 'a) Unordered_array_fold.t -> 'a t
-    | Var                  of 'a Var.t
+    | Unordered_array_fold   : (_, 'a) Unordered_array_fold.t -> 'a t
+    | Var                    of 'a Var.t
     | Map2
       : ('a1 -> 'a2 -> 'a)
         * 'a1 Node.t * 'a2 Node.t

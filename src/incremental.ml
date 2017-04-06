@@ -85,6 +85,10 @@ module Make_with_config (Incremental_config : Incremental_config) () = struct
 
   let array_fold ts ~init ~f = State.array_fold state ts ~init ~f
 
+  let reduce_balanced ts ~f ~reduce =
+    Reduce_balanced.create state ts ~f ~reduce
+  ;;
+
   let unordered_array_fold ?full_compute_every_n_changes ts ~init ~f ~f_inverse =
     State.unordered_array_fold state ts ~init ~f ~f_inverse
       ?full_compute_every_n_changes
@@ -204,39 +208,23 @@ module Make_with_config (Incremental_config : Incremental_config) () = struct
 
   module Expert = struct
     module Dependency = struct
-      type 'a t = 'a Expert.edge [@@deriving sexp_of]
-
-      let create ?(on_change = ignore) child : _ t =
-        { child; on_change; index = Uopt.none }
-      ;;
-
-      let value (t : _ t) =
-        if debug then begin
-          State.Expert.assert_currently_running_node_is_parent State.t
-            t.child "Dependency.value"
-        end;
-        (* Not exposing the _exn, because this function is advertised as being usable only
-           inside the callbacks of parents, where it will not raise. *)
-        Node.value_exn t.child
-      ;;
+      include Expert1.Dependency
+      let value t = value State.t t
     end
-
     module Node = struct
-      type nonrec 'a t = 'a t [@@deriving sexp_of]
+      include Expert1.Node
 
-      let create ?(on_observability_change = fun ~is_now_observable:_ -> ()) f =
-        State.Expert.create State.t ~on_observability_change f
+      let create ?on_observability_change f =
+        Expert1.Node.create State.t ?on_observability_change f
       ;;
 
-      let make_stale t = State.Expert.make_stale state t
+      let make_stale t = Expert1.Node.make_stale state t
 
-      let watch = Fn.id
+      let invalidate t = Expert1.Node.invalidate State.t t
 
-      let invalidate t = State.Expert.invalidate State.t t
+      let add_dependency t edge = Expert1.Node.add_dependency State.t t edge
 
-      let add_dependency t edge = State.Expert.add_dependency State.t t edge
-
-      let remove_dependency t edge  = State.Expert.remove_dependency State.t t edge
+      let remove_dependency t edge  = Expert1.Node.remove_dependency State.t t edge
     end
   end
 

@@ -590,6 +590,24 @@ module type S_without_times = sig
     -> f:('b -> 'a -> 'b)
     -> 'b t
 
+  (** [reduce_balanced ts ~f ~reduce] does a fold-like operation over [ts].  Unlike
+      [array_fold], the operation will be computed in [O(min(n, k * log(n)))] time, where
+      [n] is the size of [ts] and [k] is the number of elements of [ts] that have changed
+      since the last stabilization.
+
+      Generally, if most or all of [ts] are changing between stabilizations, using
+      [array_fold] will have better constant factors.
+
+      The [reduce] argument must be an associative operation:
+      [reduce a (reduce b c) = (reduce (reduce a b) c)].
+
+      [None] is returned upon supplying an empty array. *)
+  val reduce_balanced
+    :  'a t array
+    -> f:('a -> 'b)
+    -> reduce:('b -> 'b -> 'b)
+    -> 'b t option
+
   (** [unordered_array_fold ts ~init ~f ~f_inverse] folds over the [ts].  Unlike
       [array_fold], the fold will be computed in time proportional to the number of [ts]
       that change rather than the number of [ts].  In a stabilization, for each [t] in
