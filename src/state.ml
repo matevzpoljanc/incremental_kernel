@@ -1619,7 +1619,7 @@ let create (module Config : Config.Incremental_config) ~max_height_allowed =
     ; set_during_stabilization                         = Stack.create ()
     ; handle_after_stabilization                       = Stack.create ()
     ; run_on_update_handlers                           = Stack.create ()
-    ; now                                              = Obj.magic ()  (* set below. *)
+    ; now                                              = Obj.magic None  (* set below. *)
     ; handle_fired
     ; fired_alarm_values                               = Uopt.none
     ; timing_wheel
