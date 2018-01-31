@@ -663,6 +663,28 @@ let memoize2 f =
       g
   ;;
 
+let memoize3 f =
+  let table = Hashtbl.Poly.create () in
+  let g x0 x1 x2 =
+    match Hashtbl.find table (x0,x1,x2) with
+    | Some z -> z
+    | None -> let z = (f x0 x1 x2) in
+      Hashtbl.set table ~key:(x0,x1,x2) ~data:z; z
+      in
+      g
+  ;;
+
+let memoize4 f =
+  let table = Hashtbl.Poly.create () in
+  let g x0 x1 x2 x3 =
+    match Hashtbl.find table (x0,x1,x2,x3) with
+    | Some z -> z
+    | None -> let z = (f x0 x1 x2 x3) in
+      Hashtbl.set table ~key:(x0,x1,x2,x3) ~data:z; z
+      in
+      g
+  ;;
+
 
 let rec recompute : type a. t -> a Node.t -> unit = fun t (node : a Node.t) ->
   if verbose then Debug.ams [%here] "recompute" node [%sexp_of: _ Node.t];
@@ -770,10 +792,10 @@ let rec recompute : type a. t -> a Node.t -> unit = fun t (node : a Node.t) ->
       (memoize2 f (Node.value_exn n1) (Node.value_exn n2));
   | Map3 (f, n1, n2, n3) ->
     maybe_change_value t node
-      (f (Node.value_exn n1) (Node.value_exn n2) (Node.value_exn n3));
+      (memoize3 f (Node.value_exn n1) (Node.value_exn n2) (Node.value_exn n3));
   | Map4 (f, n1, n2, n3, n4) ->
     maybe_change_value t node
-      (f (Node.value_exn n1) (Node.value_exn n2) (Node.value_exn n3)
+      (memoize4 f (Node.value_exn n1) (Node.value_exn n2) (Node.value_exn n3)
          (Node.value_exn n4));
   | Map5 (f, n1, n2, n3, n4, n5) ->
     maybe_change_value t node
