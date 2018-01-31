@@ -652,6 +652,18 @@ let change_child
     end;
 ;;
 
+let memoize2 f =
+  let table = Hashtbl.Poly.create () in
+  let g x y =
+    match Hashtbl.find table (x,y) with
+    | Some z -> z
+    | None -> let z = (f x y) in
+      Hashtbl.set table ~key:(x,y) ~data:z; z
+      in
+      g
+  ;;
+
+
 let rec recompute : type a. t -> a Node.t -> unit = fun t (node : a Node.t) ->
   if verbose then Debug.ams [%here] "recompute" node [%sexp_of: _ Node.t];
   if debug then begin
@@ -755,7 +767,7 @@ let rec recompute : type a. t -> a Node.t -> unit = fun t (node : a Node.t) ->
   | Var var -> maybe_change_value t node var.value
   | Map2 (f, n1, n2) ->
     maybe_change_value t node
-      (f (Node.value_exn n1) (Node.value_exn n2));
+      (memoize2 f (Node.value_exn n1) (Node.value_exn n2));
   | Map3 (f, n1, n2, n3) ->
     maybe_change_value t node
       (f (Node.value_exn n1) (Node.value_exn n2) (Node.value_exn n3));
