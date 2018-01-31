@@ -1357,7 +1357,7 @@ let memoize_fun_by_key
      current at the point of the call to [memoize_fun_by_key] so that we can think of the
      [table] as having been created then, when it in reality is created on-demand. *)
   let scope = t.current_scope in
-  let table = Hashtbl.Using_hashable.create ~size:initial_size ~hashable () in
+  let table = Hashtbl.create ~size:initial_size ~hashable () in
   stage (fun a ->
     let key = project_key a in
     match Hashtbl.find table key with

@@ -9,7 +9,7 @@ type t =
 
 let create exn =
   { exn
-  ; backtrace = Backtrace.Exn.most_recent ()
+  ; backtrace = Backtrace.get ()
   }
 ;;
 
