@@ -1,4 +1,16 @@
 open Core_kernel
+
+let memoize f =
+  let table = Hashtbl.Poly.create () in
+  let g x =
+    match Hashtbl.find table x with
+    | Some z -> z
+    | None -> let z = (f x) in
+      Hashtbl.set table ~key:x ~data:z; z
+      in
+      g
+  ;;
+
 let memoize2 f =
   let table = Hashtbl.Poly.create () in
   let g x y =
