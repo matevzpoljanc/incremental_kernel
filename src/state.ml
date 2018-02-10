@@ -8,6 +8,7 @@
 open Core_kernel
 open Import
 open Types.Kind
+open Memoize
 
 type status =
   | Stabilizing
@@ -738,7 +739,7 @@ let rec recompute : type a. t -> a Node.t -> unit = fun t (node : a Node.t) ->
       ~child_index:Kind.join_rhs_child_index;
     maybe_change_value t node ();
   | Join_main { rhs; _ } -> copy_child t ~parent:node ~child:(Uopt.value_exn rhs)
-  | Map (f, n1) -> maybe_change_value t node (f (Node.value_exn n1));
+  | Map (f, n1) -> maybe_change_value t node ((memoize f) (Node.value_exn n1));
   | Snapshot { at; before; _ } ->
     (* It is a bug if we try to compute a [Snapshot] and the alarm should have fired.
        [advance_clock] was supposed to convert it to a [Freeze] at the appropriate
@@ -755,13 +756,13 @@ let rec recompute : type a. t -> a Node.t -> unit = fun t (node : a Node.t) ->
   | Var var -> maybe_change_value t node var.value
   | Map2 (f, n1, n2) ->
     maybe_change_value t node
-      (f (Node.value_exn n1) (Node.value_exn n2));
+      ((memoize2 f) (Node.value_exn n1) (Node.value_exn n2));
   | Map3 (f, n1, n2, n3) ->
     maybe_change_value t node
-      (f (Node.value_exn n1) (Node.value_exn n2) (Node.value_exn n3));
+      ((memoize3 f) (Node.value_exn n1) (Node.value_exn n2) (Node.value_exn n3));
   | Map4 (f, n1, n2, n3, n4) ->
     maybe_change_value t node
-      (f (Node.value_exn n1) (Node.value_exn n2) (Node.value_exn n3)
+      ((memoize4 f) (Node.value_exn n1) (Node.value_exn n2) (Node.value_exn n3)
          (Node.value_exn n4));
   | Map5 (f, n1, n2, n3, n4, n5) ->
     maybe_change_value t node
