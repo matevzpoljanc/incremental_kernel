@@ -1,6 +1,7 @@
 open Core_kernel
 open Import
 open Types.Kind
+open Memoize
 
 module Node = Types.Node
 
@@ -89,7 +90,7 @@ let child_changed t ~old_value_opt ~new_value =
   if t.num_changes_since_last_full_compute < t.full_compute_every_n_changes - 1
   then begin
     t.num_changes_since_last_full_compute <- t.num_changes_since_last_full_compute + 1;
-    t.fold_value <- Uopt.some (t.f (t.f_inverse
+    t.fold_value <- Uopt.some ((memoize2 t.f) ((memoize2 t.f_inverse)
                                       (Uopt.value_exn t.fold_value)
                                       (Uopt.value_exn old_value_opt))
                                  new_value);
