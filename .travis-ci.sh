@@ -1,5 +1,5 @@
 # Edit this for your own project dependencies
-OPAM_DEPENDS="ocamlfind ounit re ezirmin jbuilder"
+OPAM_DEPENDS="ocamlfind ounit re ezirmin jbuilder core"
 	 
 echo "yes" | sudo add-apt-repository ppa:avsm/ppa
 sudo apt-get update -qq
