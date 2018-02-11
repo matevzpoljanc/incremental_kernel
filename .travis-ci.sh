@@ -1,5 +1,5 @@
 # Edit this for your own project dependencies
-OPAM_DEPENDS="ocamlfind ounit re ezirmin jbuilder core"
+OPAM_DEPENDS="ocamlfind ounit re ezirmin jbuilder core ocaml-migrate-parsetree"
 	 
 echo "yes" | sudo add-apt-repository ppa:avsm/ppa
 sudo apt-get update -qq
