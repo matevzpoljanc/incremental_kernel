@@ -1,5 +1,5 @@
 # Edit this for your own project dependencies
-OPAM_DEPENDS="ocamlfind ppx_driver ppx_jane ounit re ezirmin jbuilder core ocaml-migrate-parsetree"
+OPAM_DEPENDS="ocamlfind incremental ppx_driver ppx_jane ounit re ezirmin jbuilder core ocaml-migrate-parsetree"
 	 
 echo "yes" | sudo add-apt-repository ppa:avsm/ppa
 sudo apt-get update -qq
