@@ -11,8 +11,8 @@ wget https://raw.github.com/ocaml/opam/master/shell/opam_installer.sh -O - | sh 
 export OPAMYES=1
 opam init
 
-opam install ocaml
-opam switch 4.05.0
+# opam install ocaml
+# opam switch 4.05.0
 
 opam install ${OPAM_DEPENDS}
 eval `opam config env`
