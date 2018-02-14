@@ -1,6 +1,6 @@
 let new_function_id = Memoize.new_function_id
 
-module IrminHashTbl = Memo_result.MemoResult(Tc.Pair (Tc.Int) (Tc.Int))(Tc.Int)
+module IrminHashTbl = Memo_result.MemoResult
 
 let (>>=) = Lwt.bind
 
